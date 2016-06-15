@@ -6,6 +6,13 @@
 #include <stdbool.h>
 #include <mpi.h>
 
+/*
+ * Partitions the number of rows evenly amongst the nodes.
+ *
+ * Each index of the two arrays represents a node.
+ * node_row_count represents the number of rows on the given node.
+ * node_row_start represents the row # of the first row located on that node.
+ */
 static int
 DistBlockMatrix_dist_rows(int *node_row_count,
                           int *node_row_start,
@@ -31,30 +38,6 @@ DistBlockMatrix_dist_rows(int *node_row_count,
     return 0;
 }
 
-int
-DistBlockMatrix_column_means(DistBlockMatrix *mat,
-                             Vector *col_means)
-{
-    int res;
-    Vector local_col_means;
-
-    res = Vector_init_zero(&local_col_means, mat->global.nr_cols);
-    CHECK_ZERO_RETURN(res);
-    
-    res = BlockMatrix_column_sums(&mat->local, &local_col_means, 1.0 / mat->global.nr_rows);
-    CHECK_ZERO_RETURN(res);
-    
-    MPI_Reduce(local_col_means.data,
-               col_means->data,
-               col_means->nr_blk_elems * BLK_LEN,
-               MPI_DOUBLE,
-               MPI_SUM,
-               0, MPI_COMM_WORLD);
-
-    Vector_free(&local_col_means);
-    return 0;
-}
-
 /*
  *  Creates a distributed matrix of all zeroes.
  */
@@ -71,12 +54,7 @@ DistBlockMatrix_init_zero(DistBlockMatrix *mat,
 
     mat->nr_nodes = nr_nodes;
     
-    if (curr_node == 0) {
-        printf("global nr_rows %d\n", nr_rows);
-        res = BlockMatrix_init_zero(&mat->global, nr_rows, nr_cols);
-    } else {
-        res = BlockMatrix_init_info(&mat->global, nr_rows, nr_cols);
-    }
+    res = BlockMatrix_init_info(&mat->global, nr_rows, nr_cols);
     CHECK_ZERO_RETURN(res);
 
     mat->node_row_count = (int *)calloc(nr_nodes, sizeof(int));
@@ -90,22 +68,7 @@ DistBlockMatrix_init_zero(DistBlockMatrix *mat,
 
     res = BlockMatrix_init_zero(&mat->local, mat->node_row_count[curr_node], nr_cols);
     CHECK_ZERO_RETURN(res);
-    printf("local nr_rows %d\n", mat->local.nr_rows);
-
-    if (curr_node == 0) {
-        for (int i = 0; i < nr_nodes; i++) {
-            printf("nr_rows %d, offset %d, node %d\n", mat->node_row_count[i], mat->node_row_start[i], i);
-        }
-    }
-
-    MPI_Scatterv(mat->global.data,
-                 mat->node_row_count,
-                 mat->node_row_start,
-                 MPI_DOUBLE,
-                 mat->local.data,
-                 mat->local.nr_blk_rows * mat->local.nr_blk_cols * BLK_SIZE,
-                 MPI_DOUBLE,
-                 0, MPI_COMM_WORLD);
+    
     return 0;
 }
 
@@ -115,7 +78,6 @@ DistBlockMatrix_seq(DistBlockMatrix *mat,
 {
     int counter = mat->node_row_start[curr_node] * mat->local.nr_cols;
     int idx, i, j;
-    printf("this has %d rows\n", mat->local.nr_rows);
     for (i = 0; i < mat->local.nr_rows; i++) {
         for (j = 0; j < mat->local.nr_cols; j++) {
             idx = POS(i,j,mat->local.nr_blk_cols);

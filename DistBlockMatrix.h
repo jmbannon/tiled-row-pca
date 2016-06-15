@@ -1,7 +1,7 @@
 #include "BlockMatrix.h"
 
-#ifndef MATRIX_H_
-#define MATRIX_H_
+#ifndef DIST_BLOCK_MATRIX_H_
+#define DIST_BLOCK_MATRIX_H_
 
 
 
@@ -9,14 +9,14 @@
 typedef struct _DistBlockMatrix {
     int nr_nodes;    // Number of nodes
    
-    int *node_row_count; // Array where each index represents a node
+    int *node_row_count; // Array where each index represents a node.
                          // and the value indicates the number of rows it contains.
 
-    int *node_row_start; // Array where each index represents a node
+    int *node_row_start; // Array where each index represents a node.
                          // and the value indicates the starting row # it contains.
 
-    BlockMatrix global;
-    BlockMatrix local;
+    BlockMatrix global;  // Global matrix meta info.
+    BlockMatrix local;   // Local matrix that contains portions of global on each node.
 } DistBlockMatrix;
 
 /*
@@ -29,13 +29,13 @@ DistBlockMatrix_init_zero(DistBlockMatrix *mat,
                           int nr_nodes,
                           int curr_node);
 
+/*
+ *  Creates a distributed matrix of sequential numbers from 0 to (m * n).
+ */
 int
 DistBlockMatrix_seq(DistBlockMatrix *mat,
                     int curr_node);
 
-int
-DistBlockMatrix_column_means(DistBlockMatrix *mat,
-                             Vector *col_means);
 
 /*
  *  Frees a distributed matrix from memory.

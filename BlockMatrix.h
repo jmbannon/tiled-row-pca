@@ -25,15 +25,14 @@ BlockMatrix_init_zero(BlockMatrix *mat,
                       int nr_rows,
                       int nr_cols);
 
+/*
+ *  Initializes the info on *mat but does not allocate any memory to it.
+ */
 int
 BlockMatrix_init_info(BlockMatrix *mat,
                       int nr_rows,
                       int nr_cols);
 
-int
-BlockMatrix_column_sums(BlockMatrix *mat,
-                        Vector *col_means,
-                        double scalar);
 
 int
 BlockMatrix_print(BlockMatrix *mat);

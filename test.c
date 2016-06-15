@@ -1,6 +1,7 @@
 #include "Vector.h"
 #include "BlockMatrix.h"
 #include "DistBlockMatrix.h"
+#include "DistBlockMatrixOperations.h"
 #include "error.h"
 #include <mpi.h>
 #include <stdio.h>
@@ -25,7 +26,7 @@ int main(int argc, char** argv) {
     MPI_Get_processor_name(processor_name, &name_len);
     
     DistBlockMatrix mat;
-    DistBlockMatrix_init_zero(&mat, 30, 10, world_size, world_rank);
+    DistBlockMatrix_init_zero(&mat, 2555565, 10, world_size, world_rank);
 
     Vector global_col_means;
     res = Vector_init_zero(&global_col_means, mat.global.nr_cols);
@@ -37,6 +38,7 @@ int main(int argc, char** argv) {
     res = DistBlockMatrix_column_means(&mat, &global_col_means);
     CHECK_ZERO_RETURN(res);
 
+/*
     for (int i = 0; i < mat.nr_nodes; i++) {
         MPI_Barrier(MPI_COMM_WORLD);
         if (i == world_rank) {
@@ -44,6 +46,7 @@ int main(int argc, char** argv) {
             BlockMatrix_print_blocks(&mat.local);
         }
     }
+*/
 
     MPI_Barrier(MPI_COMM_WORLD);
     if (world_rank == 0) {
