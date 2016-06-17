@@ -1,9 +1,10 @@
 #include "Vector.h"
+#include "lapacke.h"
 
 #ifndef _BLOCK_MATRIX_H
 #define _BLOCK_MATRIX_H
 
-#define BLK_LEN (4)
+#define BLK_LEN (16)
 #define BLK_SIZE (BLK_LEN * BLK_LEN)
 
 /* Translates a row,col index to a block format index */
@@ -43,5 +44,7 @@ BlockMatrix_print_blocks(BlockMatrix *mat);
 void
 BlockMatrix_print_padding(BlockMatrix *mat);
 
+int
+test_1();
 
 #endif
