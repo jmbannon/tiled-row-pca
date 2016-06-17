@@ -2,6 +2,7 @@
 #include "BlockMatrix.h"
 #include "DistBlockMatrix.h"
 #include "DistBlockMatrixOperations.h"
+#include "Timer.h"
 #include "error.h"
 #include <mpi.h>
 #include <stdio.h>
@@ -26,7 +27,7 @@ int main(int argc, char** argv) {
     MPI_Get_processor_name(processor_name, &name_len);
     
     DistBlockMatrix mat;
-    DistBlockMatrix_init_zero(&mat, 2555565, 10, world_size, world_rank);
+    DistBlockMatrix_init_zero(&mat, 255565, 120, world_size, world_rank);
 
     Vector global_col_means;
     res = Vector_init_zero(&global_col_means, mat.global.nr_cols);
@@ -34,10 +35,16 @@ int main(int argc, char** argv) {
     
     res = DistBlockMatrix_seq(&mat, world_rank);
     CHECK_ZERO_RETURN(res);
-    
+
+    Timer timer;
+    Timer_start(&timer);    
     res = DistBlockMatrix_column_means(&mat, &global_col_means);
+    Timer_end(&timer);
     CHECK_ZERO_RETURN(res);
 
+    if (world_rank == 0) {
+        printf("Column means seconds: %lf\n", Timer_dur_sec(&timer));
+    }
 /*
     for (int i = 0; i < mat.nr_nodes; i++) {
         MPI_Barrier(MPI_COMM_WORLD);
@@ -55,8 +62,8 @@ int main(int argc, char** argv) {
     }
 
     DistBlockMatrix_free(&mat, world_rank);
+    test_1();    
     MPI_Finalize();
-    
     return 0;
 }
 
