@@ -2,7 +2,7 @@ EXEC         = row-tile-pca
 CC           = mpicc
 INCL         = -I./include
 LAPACK_INCL  = -framework Accelerate
-SRC          = $(wildcard *.c)
+SRC          = $(wildcard src/*.c)
 
 FLAGS        = ${INCL} ${LAPACK_INCL}
 # == Edit to your configuration =======
