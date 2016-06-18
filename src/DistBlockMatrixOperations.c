@@ -1,11 +1,12 @@
 #include "DistBlockMatrixOperations.h"
 #include "BlockMatrix.h"
 #include "BlockMatrixOperations.h"
+#include "BlockMatrixVectorOperations.h"
 #include "DistBlockMatrix.h"
 #include "Vector.h"
 #include "error.h"
 #include <mpi.h>
-
+#include <stdio.h>
 
 int
 DistBlockMatrix_column_means(DistBlockMatrix *mat,
@@ -20,14 +21,29 @@ DistBlockMatrix_column_means(DistBlockMatrix *mat,
     res = BlockMatrix_column_sums(&mat->local, &local_col_means, 1.0 / mat->global.nr_rows);
     CHECK_ZERO_RETURN(res);
     
-    MPI_Reduce(local_col_means.data,
+    MPI_Allreduce(local_col_means.data,
                col_means->data,
                col_means->nr_blk_elems * BLK_LEN,
                MPI_DOUBLE,
                MPI_SUM,
-               0, MPI_COMM_WORLD);
+               MPI_COMM_WORLD);
 
     Vector_free(&local_col_means);
     return 0;
 }
 
+int
+DistBlockMatrix_normalize(DistBlockMatrix *mat)
+{
+    int res;
+    Vector col_means;
+    res = Vector_init_zero(&col_means, mat->global.nr_cols);
+    CHECK_ZERO_RETURN(res);
+    
+    res = DistBlockMatrix_column_means(mat, &col_means);
+    CHECK_ZERO_RETURN(res);
+    
+    res = BlockMatrixVector_sub(&mat->local, &col_means);
+    Vector_free(&col_means);
+    return res;
+}

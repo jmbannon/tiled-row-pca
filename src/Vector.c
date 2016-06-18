@@ -4,6 +4,17 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+double*
+Vector_get_block(Vector *vec,
+                 int blk_nr)
+{
+    if (blk_nr < 0 || blk_nr >= vec->nr_blk_elems) {
+        return NULL;
+    } else {
+        return &vec->data[blk_nr * BLK_LEN];
+    }
+}
+
 int
 Vector_init_zero(Vector *vec,
                  int nr_elements)

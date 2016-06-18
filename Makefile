@@ -2,6 +2,7 @@ EXEC         = row-tile-pca
 CC           = mpicc
 INCL         = -I./include
 LAPACK_INCL  = -framework Accelerate
+BLAS_INCL    = -L/usr/local/lib -llibblas.a
 SRC          = $(wildcard src/*.c)
 
 FLAGS        = ${INCL} ${LAPACK_INCL}

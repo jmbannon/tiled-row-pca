@@ -11,4 +11,7 @@ int
 DistBlockMatrix_column_means(DistBlockMatrix *mat,
                              Vector *col_means);
 
+int
+DistBlockMatrix_normalize(DistBlockMatrix *mat);
+
 #endif

@@ -103,3 +103,15 @@ DistBlockMatrix_free(DistBlockMatrix *mat,
     return 0;
 }
 
+void
+DistBlockMatrix_print_blocks(DistBlockMatrix *mat,
+                             int curr_node)
+{
+    for (int i = 0; i < mat->nr_nodes; i++) {
+        MPI_Barrier(MPI_COMM_WORLD);
+        if (i == curr_node) {
+            printf("rank %d\n", curr_node);
+            BlockMatrix_print_blocks(&mat->local);
+        }
+    }
+}

@@ -44,5 +44,8 @@ int
 DistBlockMatrix_free(DistBlockMatrix *mat,
                      int curr_node);
 
+void
+DistBlockMatrix_print_blocks(DistBlockMatrix *mat,
+                             int curr_node);
 
 #endif

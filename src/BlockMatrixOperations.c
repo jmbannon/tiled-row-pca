@@ -1,8 +1,13 @@
 #include "BlockMatrixOperations.h"
 #include "BlockMatrix.h"
+#include "BlockOperations.h"
 #include "Vector.h"
+#include "error.h"
+#include "lapacke.h"
+#include <cblas.h>
+#include <stdio.h>
 
-static double*
+double*
 BlockMatrix_get_block(BlockMatrix *mat,
                       int blk_i,
                       int blk_j)
@@ -10,40 +15,28 @@ BlockMatrix_get_block(BlockMatrix *mat,
     return &mat->data[POS(blk_i * BLK_LEN, blk_j * BLK_LEN, mat->nr_blk_cols)];
 }
 
-static void
-BlockMatrix_block_col_sums(double *block,
-                           double *col_sum)
-{
-    int row_offset;
-    for (int i = 0; i < BLK_LEN; i++) {
-        row_offset = i * BLK_LEN;
-        for (int j = 0; j < BLK_LEN; j++) {
-            col_sum[j] += block[row_offset + j]; 
-        }
-    }
-}
 
 int
 BlockMatrix_column_sums(BlockMatrix *mat,
                         Vector *col_sums,
                         double scalar)
 {
-    if (mat->nr_rows <= 0) {
-        return 0;
+    if (col_sums->nr_elems != mat->nr_cols) {
+        return INVALID_DIMS;
     }
 
-    double *blk;
-    double block_sum[BLK_LEN];
-    int col_offset;
-    for (int blk_row = 0; blk_row < mat->nr_blk_rows; blk_row++) {
-        for (int blk_col = 0; blk_col < mat->nr_blk_cols; blk_col++) {
-            blk = BlockMatrix_get_block(mat, blk_row, blk_col);
-            col_offset = blk_col * BLK_LEN;
-            BlockMatrix_block_col_sums(blk, &col_sums->data[col_offset]);
+    double *mat_blk;
+    double *vec_blk;
+    for (int blk_col = 0; blk_col < mat->nr_blk_cols; blk_col++) {
+        vec_blk = Vector_get_block(col_sums, blk_col);
+        for (int blk_row = 0; blk_row < mat->nr_blk_rows; blk_row++) {
+            mat_blk = BlockMatrix_get_block(mat, blk_row, blk_col);
+            Block_col_sums(mat_blk, vec_blk);
         }
     }
-    for (int i = 0; i < col_sums->nr_elems; i++) {
-        col_sums->data[i] *= scalar;
-    }
+
+    // col_sums *= scalar
+    cblas_dscal(col_sums->nr_elems, scalar, col_sums->data, 1);
     return 0;
 }
+

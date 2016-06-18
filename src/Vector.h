@@ -7,6 +7,10 @@ typedef struct _Vector {
     double *data;
 } Vector;
 
+double*
+Vector_get_block(Vector *vec,
+                 int blk_nr);
+
 int
 Vector_init_zero(Vector *vec,
                  int nr_elements);
