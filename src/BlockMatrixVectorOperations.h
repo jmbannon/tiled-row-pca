@@ -13,5 +13,4 @@
 int
 BlockMatrixVector_sub(BlockMatrix *mat,
                       Vector *vec);
-
 #endif

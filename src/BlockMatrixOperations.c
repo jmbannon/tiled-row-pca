@@ -27,9 +27,9 @@ BlockMatrix_column_sums(BlockMatrix *mat,
 
     double *mat_blk;
     double *vec_blk;
-    for (int blk_col = 0; blk_col < mat->nr_blk_cols; blk_col++) {
-        vec_blk = Vector_get_block(col_sums, blk_col);
-        for (int blk_row = 0; blk_row < mat->nr_blk_rows; blk_row++) {
+    for (int blk_row = 0; blk_row < mat->nr_blk_rows; blk_row++) {
+        for (int blk_col = 0; blk_col < mat->nr_blk_cols; blk_col++) {
+            vec_blk = Vector_get_block(col_sums, blk_col);
             mat_blk = BlockMatrix_get_block(mat, blk_row, blk_col);
             Block_col_sums(mat_blk, vec_blk);
         }
@@ -39,4 +39,3 @@ BlockMatrix_column_sums(BlockMatrix *mat,
     cblas_dscal(col_sums->nr_elems, scalar, col_sums->data, 1);
     return 0;
 }
-

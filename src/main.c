@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
     MPI_Get_processor_name(processor_name, &name_len);
     
     DistBlockMatrix mat;
-    DistBlockMatrix_init_zero(&mat, 30, 12, world_size, world_rank);
+    DistBlockMatrix_init_zero(&mat, 262144*world_size, 128, world_size, world_rank);
 
     res = DistBlockMatrix_seq(&mat, world_rank);
     CHECK_ZERO_RETURN(res);
@@ -35,7 +35,6 @@ int main(int argc, char** argv) {
     Timer timer;
     Timer_start(&timer);    
     res = DistBlockMatrix_normalize(&mat);
-    MPI_Barrier(MPI_COMM_WORLD);
     Timer_end(&timer);
     CHECK_ZERO_RETURN(res);
 
@@ -43,8 +42,9 @@ int main(int argc, char** argv) {
         printf("Column means seconds: %lf\n", Timer_dur_sec(&timer));
     }
   
-    DistBlockMatrix_print_blocks(&mat, world_rank);  
+    //DistBlockMatrix_print_blocks(&mat, world_rank);  
     DistBlockMatrix_free(&mat, world_rank);
+    
     test_1();    
     MPI_Finalize();
     return 0;
