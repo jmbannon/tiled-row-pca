@@ -1,20 +1,22 @@
-EXEC         = row-tile-pca
-CC           = mpicc
-INCL         = -I./include
-LAPACK_INCL  = -framework Accelerate
-BLAS_INCL    = -L/usr/local/lib -llibblas.a
-SRC          = $(wildcard src/*.c)
-
-FLAGS        = ${INCL} ${LAPACK_INCL}
 # == Edit to your configuration =======
 
-WORKING_DIR = /Users/jb/workspace/pca2
+WORKING_DIR  = /Users/jb/workspace/pca2
+OMPI_DIR     = /usr/local/Cellar/open-mpi/1.10.2_1/include
+BLAS_LIB_DIR = /usr/local/lib
+LAPACK_ARGS  = -framework Accelerate
 
 # ======================================
 
-DEFINES =   -D WORKING_DIR=${WORKING_DIR} \
-			-D CC=${CC} \
-			
+EXEC         = row-tile-pca
+CC           = gcc-6
+INCL         = -I./include
+OMP_FLAG     = -fopenmp
+OMPI_INCL    = -I${OMPI_DIR} -lmpi
+LAPACK_INCL  = ${LAPACK_ARGS}
+BLAS_INCL    = -L${BLAS_LIB_DIR} -llibblas.a
+SRC          = $(wildcard src/*.c)
+
+FLAGS        = ${INCL} ${LAPACK_INCL} ${OMP_FLAG} ${OMPI_INCL}
 
 ${EXEC}: ${SRC}
 		${CC} -o $@ $^ ${FLAGS} ${DEFINES}
