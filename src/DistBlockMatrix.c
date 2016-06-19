@@ -35,6 +35,7 @@ DistBlockMatrix_dist_rows(int *node_row_count,
             node_row_start[i] = 0;
         }
     }
+
     return 0;
 }
 

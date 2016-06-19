@@ -4,7 +4,7 @@
 #ifndef _BLOCK_MATRIX_H
 #define _BLOCK_MATRIX_H
 
-#define BLK_LEN (4)
+#define BLK_LEN (16)
 #define BLK_SIZE (BLK_LEN * BLK_LEN)
 
 /* Translates a row,col index to a block format index (column-wise) */

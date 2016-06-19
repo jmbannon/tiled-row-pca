@@ -27,7 +27,9 @@ int main(int argc, char** argv) {
     MPI_Get_processor_name(processor_name, &name_len);
     
     DistBlockMatrix mat;
-    DistBlockMatrix_init_zero(&mat, 262144*world_size, 128, world_size, world_rank);
+    DistBlockMatrix_init_zero(&mat, 131072*world_size, 256, world_size, world_rank);
+    Vector vec;
+    Vector_init_zero(&vec, mat.global.nr_cols);
 
     res = DistBlockMatrix_seq(&mat, world_rank);
     CHECK_ZERO_RETURN(res);
@@ -39,7 +41,7 @@ int main(int argc, char** argv) {
     CHECK_ZERO_RETURN(res);
 
     if (world_rank == 0) {
-        printf("Column means seconds: %lf\n", Timer_dur_sec(&timer));
+        printf("Matrix normalization: %lf\n", Timer_dur_sec(&timer));
     }
   
     //DistBlockMatrix_print_blocks(&mat, world_rank);  
