@@ -1,5 +1,6 @@
 #include "DistBlockMatrix.h"
 #include "BlockMatrix.h"
+#include "Block.h"
 #include "error.h"
 #include <stdlib.h>
 #include <stdio.h>

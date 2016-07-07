@@ -1,11 +1,9 @@
 #include "Vector.h"
+#include "Block.h"
 #include "lapacke.h"
 
 #ifndef _BLOCK_MATRIX_H
 #define _BLOCK_MATRIX_H
-
-#define BLK_LEN (16)
-#define BLK_SIZE (BLK_LEN * BLK_LEN)
 
 /* Translates a row,col index to a block format index (column-wise) */
 #define POS(i,j,nr_blk_cols) \
@@ -21,13 +19,25 @@ typedef struct _BlockMatrix {
     double *data;
 } BlockMatrix;
 
+/**
+ * Initializes a matrix with 0s.
+ *
+ * @param mat Matrix to initialize.
+ * @param nr_rows Number of rows.
+ * @param nr_cols Number of columns.
+ */
 int
 BlockMatrix_init_zero(BlockMatrix *mat,
                       int nr_rows,
                       int nr_cols);
 
-/*
- *  Initializes the info on *mat but does not allocate any memory to it.
+/**
+ * Initializes a matrix's meta-info but does not allocate
+ * memory for its data.
+ *
+ * @param mat Matrix to initialize info.
+ * @paran nr_rows Number of rows.
+ * @param nr_cols Number of columns.
  */
 int
 BlockMatrix_init_info(BlockMatrix *mat,

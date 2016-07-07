@@ -1,4 +1,5 @@
 #include "BlockMatrix.h"
+#include "Block.h"
 #include "error.h"
 #include "Vector.h"
 #include <stdbool.h>
@@ -6,6 +7,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+/**
+ * Initializes a block matrix. Boolean param specifying whether to
+ * actually allocate memory for it.
+ *
+ * @param mat Matrix to initialize.
+ * @param nr_rows Number of rows.
+ * @param nr_cols Number of columns.
+ * @param init_data Boolean specifying whether to allocate memory
+ *                  for matrix data.
+ */
 static int
 BlockMatrix_init_zero_flag(BlockMatrix *mat,
                            int nr_rows,
@@ -25,6 +36,13 @@ BlockMatrix_init_zero_flag(BlockMatrix *mat,
     return 0;
 }
 
+/**
+ * Initializes a matrix with 0s.
+ *
+ * @param mat Matrix to initialize.
+ * @param nr_rows Number of rows.
+ * @param nr_cols Number of columns.
+ */
 int
 BlockMatrix_init_zero(BlockMatrix *mat,
                       int nr_rows,
@@ -33,6 +51,14 @@ BlockMatrix_init_zero(BlockMatrix *mat,
     return BlockMatrix_init_zero_flag(mat, nr_rows, nr_cols, true);
 }
 
+/**
+ * Initializes a matrix's meta-info but does not allocate
+ * memory for its data.
+ *
+ * @param mat Matrix to initialize info.
+ * @paran nr_rows Number of rows.
+ * @param nr_cols Number of columns.
+ */
 int
 BlockMatrix_init_info(BlockMatrix *mat,
                       int nr_rows,

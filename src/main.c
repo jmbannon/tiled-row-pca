@@ -35,8 +35,10 @@ int main(int argc, char** argv) {
     CHECK_ZERO_RETURN(res);
 
     Timer timer;
+    MPI_Barrier(MPI_COMM_WORLD);
     Timer_start(&timer);    
     res = DistBlockMatrix_normalize(&mat);
+    MPI_Barrier(MPI_COMM_WORLD);
     Timer_end(&timer);
     CHECK_ZERO_RETURN(res);
 

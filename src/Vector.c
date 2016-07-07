@@ -1,5 +1,5 @@
 #include "Vector.h"
-#include "BlockMatrix.h"
+#include "Block.h"
 #include "error.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -13,6 +13,17 @@ Vector_get_block(Vector *vec,
     } else {
         return &vec->data[blk_nr * BLK_LEN];
     }
+}
+
+int
+Vector_init(Vector *vec,
+            int nr_elements)
+{
+    vec->nr_elems = nr_elements;
+    vec->nr_blk_elems = nr_elements / BLK_LEN + (nr_elements % BLK_LEN != 0);
+    vec->data = malloc(vec->nr_blk_elems * BLK_LEN * sizeof(double));
+    CHECK_MALLOC_RETURN(vec->data);
+    return 0;
 }
 
 int

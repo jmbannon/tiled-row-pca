@@ -16,5 +16,6 @@ if ((res) == NULL) \
 #define MALLOC_FAIL -1
 #define INVALID_DIMS -1000
 #define INVALID_NODES -1001
+#define INVALID_INDICES -1002
 
 #endif
