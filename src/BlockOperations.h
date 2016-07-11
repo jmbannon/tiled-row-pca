@@ -23,7 +23,12 @@ Block_sub_vec(double *block,
  * @return T1 T for Q = I + Y %*% T %*% t(Y)
  */ 
 int
-Block_DGEQT2(Block A,
-             Block T1);
+Block_DGEQT2(double *A,
+             double *T1);
+
+int
+Block_DLARFB(double *A,
+             double *VR,
+             double *T1);
 
 #endif

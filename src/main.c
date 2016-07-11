@@ -4,6 +4,7 @@
 #include "DistBlockMatrixOperations.h"
 #include "Timer.h"
 #include "error.h"
+#include "test/BlockTest.h"
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,8 +49,8 @@ int main(int argc, char** argv) {
   
     //DistBlockMatrix_print_blocks(&mat, world_rank);  
     DistBlockMatrix_free(&mat, world_rank);
-    
-    test_1();    
+   
+    test_DGEQT2();    
     MPI_Finalize();
     return 0;
 }
