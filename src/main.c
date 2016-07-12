@@ -50,7 +50,10 @@ int main(int argc, char** argv) {
     //DistBlockMatrix_print_blocks(&mat, world_rank);  
     DistBlockMatrix_free(&mat, world_rank);
    
-    test_DGEQT2();    
+    test_DGEQT3();
+    //test_Block_init_rbind();
+    //test_Block_tri();
+    //test_DGEQT2();    
     MPI_Finalize();
     return 0;
 }

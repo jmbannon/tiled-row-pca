@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "BlockTest.h"
 #include "../error.h"
 #include "../Block.h"
@@ -31,4 +32,62 @@ int test_DGEQT2()
     Block_print(seq);
 
     return 0;
+}
+
+int test_DGEQT3()
+{
+    int res;
+    double *seq, *seqR, *seqT, *rbind;
+
+    res = Block_init_seq(&seq);
+    CHECK_ZERO_RETURN(res);
+    res = Block_init_seq(&seqT);
+    CHECK_ZERO_RETURN(res);
+
+    res = Block_DTSQT2(seq, seqT, &rbind);
+    CHECK_ZERO_RETURN(res);
+
+    printf("R and Householder Vectors:\n");
+    Block_print_rbind(rbind);
+    printf("T Matrix:\n");
+    Block_print(seqT);
+
+    return 0;
+}
+
+int test_Block_tri()
+{
+    int res;
+    double *seq;
+
+    for (int upper = 0; upper <= 1; upper++) {
+        for (int diag = 0; diag <= 1; diag++) {
+            res = Block_init_seq(&seq);
+            CHECK_ZERO_RETURN(res);
+            printf("upper=%d, diag=%d\n", upper, diag);
+            res = Block_zero_tri(seq, upper, diag);
+            CHECK_ZERO_RETURN(res);
+            Block_print(seq);
+            free(seq);
+        }
+    }
+    return 0;
+}
+
+int test_Block_init_rbind()
+{
+    int res;
+    double *seq1, *seq2, *rbind;
+    res = Block_init_seq(&seq1);
+    CHECK_ZERO_RETURN(res);
+    res = Block_init_seq(&seq2);
+    CHECK_ZERO_RETURN(res);
+    res = Block_init_rbind(&rbind, seq1, seq2);
+    CHECK_ZERO_RETURN(res);
+
+    printf("two seq's rbinded\n");
+    Block_print_rbind(rbind);
+    free(seq1);
+    free(seq2);
+    free(rbind);
 }

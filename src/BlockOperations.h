@@ -31,4 +31,9 @@ Block_DLARFB(double *A,
              double *VR,
              double *T1);
 
+int
+Block_DTSQT2(double *VRin,
+             double *T1inout,
+             double **VRout);
+
 #endif
