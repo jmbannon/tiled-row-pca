@@ -2,6 +2,7 @@
 #include <cblas.h>
 #include "BlockOperations.h"
 #include "BlockMatrix.h"
+#include "DoubleBlock.h"
 #include "Block.h"
 #include "error.h"
 #include "lapacke.h"
@@ -60,7 +61,7 @@ Block_DTSQT2(double *VRin,
 {
     int res = Block_zero_tri(VRin, false, false);
     CHECK_ZERO_RETURN(res);
-    res = Block_init_rbind(VRout, VRin, T1inout);
+    res = DoubleBlock_init_rbind(VRout, VRin, T1inout);
     CHECK_ZERO_RETURN(res);
     return _Block_DGEQT2_internal(*VRout, T1inout, BLK_LEN * 2, BLK_LEN);
 }
@@ -122,33 +123,36 @@ Block_DSSRFB3(double *A_kn,
     int res;
     double *tmp_diag_blk;
     double *V_mk_orig;
+    double *dbl_diag;
+    double *V_mk_T1_tmp;
+    double *A_kn_A_mn;
 
     // TODO: Create a function that inits a diag on top of an existing block
     res = Block_init(&tmp_diag_blk);
     CHECK_ZERO_RETURN(res);
-    res = Block_init_rbind(&V_mk_orig, tmp_diag_blk, V_mk);
+    res = DoubleBlock_init_rbind(&V_mk_orig, tmp_diag_blk, V_mk);
     CHECK_ZERO_RETURN(res);
     // ODOT
 
-    double *V_mk_T1_tmp;
     res = Block_init(&V_mk_T1_tmp);
     CHECK_ZERO_RETURN(res);
 
-    // V_mk_orig * T1_mk
-    // C := alpha * op( A ) * op( B ) + beta*C
-    _cblas_dgemm(V_mk_T1_tmp,
-                 T1_mk,
-                 V_mk_T1_tmp,
-                 BLK_LEN * 2,
-                 BLK_LEN,
-                 BLK_LEN,
-                 CBLAS_NO_TRANS,
-                 CBLAS_NO_TRANS,
-                 BLK_LEN * 2,
-                 BLK_LEN,
-                 BLK_LEN,
-                 1.0,
-                 0.0);
+    res = DoubleBlock_init_diag(&dbl_diag);
+    CHECK_ZERO_RETURN(res);
+
+    res = DoubleBlock_init_rbind(&A_kn_A_mn, A_kn, A_mn);
+    CHECK_ZERO_RETURN(res);
+
+    // V_mk_T1_tmp := V_mk_orig * T1_mk
+    _cblas_dgemm(V_mk_orig, T1_mk, V_mk_T1_tmp, DBL_BLK_LEN, BLK_LEN, BLK_LEN, CBLAS_NO_TRANS, CBLAS_NO_TRANS, DBL_BLK_LEN, BLK_LEN, BLK_LEN, 1.0, 0.0);
+
+    // dbl_diag := V_mk_T1_tmp * t(V_mk_orig) + dbl_diag
+    _cblas_dgemm(V_mk_T1_tmp, V_mk_orig, dbl_diag, DBL_BLK_LEN, BLK_LEN, BLK_LEN, CBLAS_NO_TRANS, CBLAS_TRANS, DBL_BLK_LEN, BLK_LEN, DBL_BLK_LEN, 1.0, 1.0);
+
+    // dbl_diag := t(dbl_diag) * A_kn_A_mn + (0 * dbl_diag)
+    _cblas_dgemm(dbl_diag, A_kn_A_mn, dbl_diag, DBL_BLK_LEN, DBL_BLK_LEN, BLK_LEN, CBLAS_TRANS, CBLAS_TRANS, DBL_BLK_LEN, DBL_BLK_LEN, DBL_BLK_LEN, 1.0, 0.0);
+
+    // free memory, split A_kn_A_mn
 }
 
 

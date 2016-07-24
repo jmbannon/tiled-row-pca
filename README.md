@@ -2,6 +2,9 @@
 A work-in-progress implementation of a distributed variant of traditional principal component analysis.
 
 Current TODO:
-- Column major single block matrices to be compatible with Fortran w/out transpose.
-- Wrapper to QR decomposition w/householder WY storage (Golub, Van Loan)
-- Possible OpenMP support
+- Finish last sub-function of Tile QR
+- Test sub-function Tile QR validation, scalability, etc
+- Use OpenMP for piecing Tile QR sub-functions together in parallel
+- Have MPI recognize each node as a single rank
+- Research parallel partial SVD algorithms
+- Tile Matrix Multiplication

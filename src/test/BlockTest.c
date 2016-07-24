@@ -3,6 +3,7 @@
 #include "BlockTest.h"
 #include "../error.h"
 #include "../Block.h"
+#include "../DoubleBlock.h"
 #include "../BlockOperations.h"
 
 int test_DGEQT2()
@@ -82,7 +83,7 @@ int test_Block_init_rbind()
     CHECK_ZERO_RETURN(res);
     res = Block_init_seq(&seq2);
     CHECK_ZERO_RETURN(res);
-    res = Block_init_rbind(&rbind, seq1, seq2);
+    res = DoubleBlock_init_rbind(&rbind, seq1, seq2);
     CHECK_ZERO_RETURN(res);
 
     printf("two seq's rbinded\n");

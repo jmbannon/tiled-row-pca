@@ -142,15 +142,3 @@ Block_print_rbind(double *rbind)
     }
 }
 
-int
-Block_init_rbind(double **rbind, double *top, double *bot)
-{
-    *rbind = (double *)malloc(BLK_SIZE * 2 * sizeof(double));
-    CHECK_MALLOC_RETURN(*rbind);
-
-    for (int j = 0; j < BLK_LEN; j++) {
-        memcpy(&(*rbind)[j * (BLK_LEN * 2)], &top[j * BLK_LEN], BLK_LEN * sizeof(double));
-        memcpy(&(*rbind)[j * (BLK_LEN * 2) + BLK_LEN], &bot[j * BLK_LEN], BLK_LEN * sizeof(double));
-    }
-    return 0;
-}
