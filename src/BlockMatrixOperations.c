@@ -4,6 +4,7 @@
 #include "Vector.h"
 #include "error.h"
 #include "lapacke.h"
+#include "constants.h"
 #include <cblas.h>
 #include <stdio.h>
 

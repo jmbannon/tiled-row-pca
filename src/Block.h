@@ -3,11 +3,6 @@
 
 #include <stdbool.h>
 
-#define BLK_LEN (4)
-#define BLK_SIZE (16)
-
-#define GET_BLK_POS(i, j) (((j) * BLK_LEN) + (i))
-
 int
 Block_init(double **blk);
 

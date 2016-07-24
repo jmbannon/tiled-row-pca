@@ -3,8 +3,6 @@
 #ifndef DIST_BLOCK_MATRIX_H_
 #define DIST_BLOCK_MATRIX_H_
 
-
-
 /* Distributed Tiled-Row wise matrix. */
 typedef struct _DistBlockMatrix {
     int nr_nodes;    // Number of nodes

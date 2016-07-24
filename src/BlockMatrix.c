@@ -4,6 +4,7 @@
 #include "Vector.h"
 #include <stdbool.h>
 #include "lapacke.h"
+#include "constants.h"
 #include <stdio.h>
 #include <stdlib.h>
 

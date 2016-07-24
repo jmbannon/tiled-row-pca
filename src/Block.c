@@ -3,6 +3,7 @@
 #include <string.h>
 #include "Block.h"
 #include "error.h"
+#include "constants.h"
 
 int
 Block_init(double **blk)
@@ -30,6 +31,18 @@ Block_init_seq(double **blk)
     }
     return 0;
 }
+
+int
+Block_init_diag(double **blk)
+{
+    int res = Block_init_zero(blk);
+    CHECK_ZERO_RETURN(res);
+    for (int i = 0; i < BLK_SIZE; i++) {
+        (*blk)[GET_BLK_POS(i, i)] = 1.0;
+    }
+    return 0;
+}
+
 
 int
 Block_get_elem(double *blk, int i, int j, double *data)

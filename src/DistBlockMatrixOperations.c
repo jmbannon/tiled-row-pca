@@ -7,6 +7,7 @@
 #include "Vector.h"
 #include "error.h"
 #include "Timer.h"
+#include "constants.h"
 #include <mpi.h>
 #include <omp.h>
 #include <stdio.h>

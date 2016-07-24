@@ -36,4 +36,10 @@ Block_DTSQT2(double *VRin,
              double *T1inout,
              double **VRout);
 
+int
+Block_DSSRFB3(double *A_kn,
+              double *A_mn,
+              double *V_mk,
+              double *T1_mk);
+
 #endif

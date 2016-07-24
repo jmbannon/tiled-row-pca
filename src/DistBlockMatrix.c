@@ -2,6 +2,7 @@
 #include "BlockMatrix.h"
 #include "Block.h"
 #include "error.h"
+#include "constants.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
