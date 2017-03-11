@@ -49,7 +49,7 @@ int test_DGEQT3()
     CHECK_ZERO_RETURN(res);
 
     printf("R and Householder Vectors:\n");
-    Block_print_rbind(rbind);
+    DoubleBlock_print(rbind);
     printf("T Matrix:\n");
     Block_print(seqT);
 
@@ -87,7 +87,7 @@ int test_Block_init_rbind()
     CHECK_ZERO_RETURN(res);
 
     printf("two seq's rbinded\n");
-    Block_print_rbind(rbind);
+    DoubleBlock_print(rbind);
     free(seq1);
     free(seq2);
     free(rbind);

@@ -2,11 +2,9 @@
 #include "constants.h"
 #include "error.h"
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
-/**
- * Inits a 2*BLK_LEN x 2*BLK_LEN column-wise matrix
- */
 int
 DoubleBlock_init(double **dbl_blk)
 {
@@ -36,4 +34,21 @@ DoubleBlock_init_rbind(double **rbind, double *top, double *bot)
         memcpy(&(*rbind)[j * (BLK_LEN * 2) + BLK_LEN], &bot[j * BLK_LEN], BLK_LEN * sizeof(double));
     }
     return 0;
+}
+
+void
+DoubleBlock_print(double *dbl_blk)
+{
+    for (int i = 0; i < BLK_LEN * 2; i++) {
+        for (int j = 0; j < BLK_LEN; j++) {
+            printf("%.7f, ", dbl_blk[(j * BLK_LEN * 2) + i]);
+        }
+        printf("\n");
+    }
+}
+
+int
+DoubleBlock_free(double **dbl_blk)
+{
+    free(*dbl_blk);
 }

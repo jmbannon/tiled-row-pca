@@ -3,7 +3,7 @@
 #ifndef DIST_BLOCK_MATRIX_H_
 #define DIST_BLOCK_MATRIX_H_
 
-/* Distributed Tiled-Row wise matrix. */
+/** Distributed Tiled-Row wise matrix. */
 typedef struct _DistBlockMatrix {
     int nr_nodes;    // Number of nodes
    
@@ -17,8 +17,8 @@ typedef struct _DistBlockMatrix {
     BlockMatrix local;   // Local matrix that contains portions of global on each node.
 } DistBlockMatrix;
 
-/*
- *  Creates a distributed matrix of all zeroes.
+/**
+ * Creates a distributed matrix of all zeroes.
  */
 int
 DistBlockMatrix_init_zero(DistBlockMatrix *mat,
@@ -27,8 +27,8 @@ DistBlockMatrix_init_zero(DistBlockMatrix *mat,
                           int nr_nodes,
                           int curr_node);
 
-/*
- *  Creates a distributed matrix of sequential numbers from 0 to (m * n).
+/**
+ * Creates a distributed matrix of sequential numbers from 0 to (m * n).
  */
 int
 DistBlockMatrix_seq(DistBlockMatrix *mat,
@@ -36,12 +36,15 @@ DistBlockMatrix_seq(DistBlockMatrix *mat,
 
 
 /*
- *  Frees a distributed matrix from memory.
+ * Frees a distributed matrix from memory.
  */
 int
 DistBlockMatrix_free(DistBlockMatrix *mat,
                      int curr_node);
 
+/**
+ * Prints the local portion of a distributed matrix.
+ */ 
 void
 DistBlockMatrix_print_blocks(DistBlockMatrix *mat,
                              int curr_node);

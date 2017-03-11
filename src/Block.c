@@ -131,14 +131,3 @@ Block_zero_tri(double *blk, bool upper, bool diag)
     return res;
 }
 
-void
-Block_print_rbind(double *rbind)
-{
-    for (int i = 0; i < BLK_LEN * 2; i++) {
-        for (int j = 0; j < BLK_LEN; j++) {
-            printf("%.7f, ", rbind[(j * BLK_LEN * 2) + i]);
-        }
-        printf("\n");
-    }
-}
-

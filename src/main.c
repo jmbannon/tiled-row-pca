@@ -2,6 +2,7 @@
 #include "BlockMatrix.h"
 #include "DistBlockMatrix.h"
 #include "DistBlockMatrixOperations.h"
+#include "DoubleBlock.h"
 #include "Timer.h"
 #include "error.h"
 #include "test/BlockTest.h"
@@ -26,11 +27,23 @@ int main(int argc, char** argv) {
     char processor_name[MPI_MAX_PROCESSOR_NAME];
     int name_len;
     MPI_Get_processor_name(processor_name, &name_len);
+
+    double *block;
+    res = Block_init_seq(&block);
+    CHECK_ZERO_RETURN(res);
+
+    // Block_print(block);
+    res = Block_zero_tri(block, false, true);
+    Block_print(block);
+    printf("nope\n");
+    double *dbl_blk;
+    DoubleBlock_init_rbind(&dbl_blk, block, block);
+    DoubleBlock_print(dbl_blk);
     
     DistBlockMatrix mat;
-    DistBlockMatrix_init_zero(&mat, 131072*world_size, 256, world_size, world_rank);
-    Vector vec;
-    Vector_init_zero(&vec, mat.global.nr_cols);
+    DistBlockMatrix_init_zero(&mat, 131072*16, 256, world_size, world_rank);
+    // Vector vec;
+    // Vector_init_zero(&vec, mat.global.nr_cols);
 
     res = DistBlockMatrix_seq(&mat, world_rank);
     CHECK_ZERO_RETURN(res);
@@ -50,7 +63,7 @@ int main(int argc, char** argv) {
     //DistBlockMatrix_print_blocks(&mat, world_rank);  
     DistBlockMatrix_free(&mat, world_rank);
    
-    test_DGEQT3();
+    //test_DGEQT3();
     //test_Block_init_rbind();
     //test_Block_tri();
     //test_DGEQT2();    
