@@ -6,4 +6,5 @@ BLAS_LIB_DIR = /usr/lib
 LAPACK_LIB_DIR = /usr/lib/lapack
 LAPACK_CWRAPPER = /home/jb/workspace/tiled-row-pca/lapack_cwrapper/lib
 LAPACK_ARGS  = -lblas -llapack -lm 
+CUBLAS_DIR   = /usr/local/cuda/lib64
 

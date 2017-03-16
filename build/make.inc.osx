@@ -6,4 +6,5 @@ BLAS_LIB_DIR = /usr/local/lib
 LAPACK_LIB_DIR = /usr/local/lib
 LAPACK_CWRAPPER = /usr/local/lib
 LAPACK_ARGS  = -framework Accelerate
+CUBLAS_DIR   = /usr/local/cuda/lib64
 
