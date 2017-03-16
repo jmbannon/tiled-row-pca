@@ -2,3 +2,4 @@
 *.o
 lapack_cwrapper/
 row-tile-pca
+make.inc

@@ -1,12 +1,4 @@
-# == Edit to your configuration =======
-
-WORKING_DIR  = /Users/jb/workspace/pca2
-OMPI_DIR     = /usr/local/Cellar/open-mpi/1.10.2_1/include
-BLAS_LIB_DIR = /usr/local/lib
-LAPACK_LIB_DIR = /usr/local/lib
-LAPACK_ARGS  = -framework Accelerate
-
-# ======================================
+include make.inc
 
 EXEC         = row-tile-pca
 CC           = gcc-6
@@ -17,7 +9,7 @@ OMPI_INCL    = -I${OMPI_DIR} -lmpi
 LAPACK_INCL  = ${LAPACK_ARGS}
 BLAS_INCL    = -L${BLAS_LIB_DIR} -llibblas.a
 LAPACK_INCL2 = ${LAPACK_LIB_DIR}/liblapack.a -l${FCC}
-LAPACK_INCL3 = ${LAPACK_LIB_DIR}/liblapack_cwrapper.a -l${FCC}
+LAPACK_INCL3 = ${LAPACK_CWRAPPER}/liblapack_cwrapper.a -l${FCC}
 SRC          = $(wildcard src/*.c src/test/*.c)
 
 FLAGS        = ${INCL} ${LAPACK_INCL2} ${LAPACK_INCL3} ${LAPACK_INCL} ${OMP_FLAG} ${OMPI_INCL}
