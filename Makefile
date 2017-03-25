@@ -1,10 +1,10 @@
 include make.inc
 
 EXEC         = row-tile-pca
-CC           = gcc-6
+CC           = nvcc
 FCC          = gfortran
 INCL         = -I./include
-OMP_FLAG     = -fopenmp
+OMP_FLAG     = -Xcompiler -fopenmp
 OMPI_INCL    = -I${OMPI_DIR} -lmpi
 LAPACK_INCL  = ${LAPACK_ARGS}
 BLAS_INCL    = -L${BLAS_LIB_DIR} -llibblas.a
