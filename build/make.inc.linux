@@ -1,10 +1,10 @@
 # == Edit to your configuration =======
 
-WORKING_DIR  = /home/jb/workspace/tiled-row-pca
-OMPI_DIR     = /usr/include/mpi
-BLAS_LIB_DIR = /usr/lib
-LAPACK_LIB_DIR = /usr/lib/lapack
+WORKING_DIR     = /home/jb/workspace/tiled-row-pca
+OMPI_DIR        = /usr/include/mpi
+BLAS_LIB_DIR    = /usr/lib
+LAPACK_LIB_DIR  = /usr/lib/lapack
 LAPACK_CWRAPPER = /home/jb/workspace/tiled-row-pca/lapack_cwrapper/lib
-LAPACK_ARGS  = -lblas -llapack -lm 
-CUBLAS_DIR   = /usr/local/cuda/lib64
-
+LAPACK_ARGS     = -lblas -llapack -lm
+CUBLAS_DIR      = /usr/local/cuda/lib64
+CUDA_INCL_DIR   = /usr/local/cuda/include
