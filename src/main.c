@@ -6,11 +6,13 @@
 #include "Timer.h"
 #include "error.h"
 #include "test/BlockTest.h"
+#include "TMP_CUDA.h"
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 int main(int argc, char** argv) {
+    //someFunction();
     // Initialize the MPI environment
     MPI_Init(NULL, NULL);
     int res;

@@ -1,10 +1,10 @@
 # == Edit to your configuration =======
 
-WORKING_DIR  = /Users/jb/workspace/pca2
-OMPI_DIR     = /usr/local/Cellar/open-mpi/1.10.2_1/include
-BLAS_LIB_DIR = /usr/local/lib
-LAPACK_LIB_DIR = /usr/local/lib
+WORKING_DIR     = /Users/jb/workspace/pca2
+OMPI_DIR        = /usr/local/Cellar/open-mpi/1.10.2_1/include
+BLAS_LIB_DIR    = /usr/local/lib
+LAPACK_LIB_DIR  = /usr/local/lib
 LAPACK_CWRAPPER = /usr/local/lib
-LAPACK_ARGS  = -framework Accelerate
-CUBLAS_DIR   = /usr/local/cuda/lib64
-
+LAPACK_ARGS     = -framework Accelerate
+CUDA_LIB_DIR    = /usr/local/cuda/lib64
+CUDA_ARCH       = sm_61
