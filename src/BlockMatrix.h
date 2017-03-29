@@ -19,6 +19,12 @@ typedef struct _BlockMatrix {
     double *data;
 } BlockMatrix;
 
+int
+BlockMatrix_init_constant(BlockMatrix *mat,
+	                      int nr_rows,
+	                      int nr_cols,
+	                      double constant);
+
 /**
  * Initializes a matrix with 0s.
  *
@@ -30,6 +36,9 @@ int
 BlockMatrix_init_zero(BlockMatrix *mat,
                       int nr_rows,
                       int nr_cols);
+
+int
+BlockMatrix_free(BlockMatrix *mat);
 
 /**
  * Initializes a matrix's meta-info but does not allocate

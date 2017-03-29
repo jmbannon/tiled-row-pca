@@ -6,6 +6,7 @@
 #include "Timer.h"
 #include "error.h"
 #include "test/BlockTest.h"
+#include "test/Tests.h"
 #include "TMP_CUDA.h"
 #include <mpi.h>
 #include <stdio.h>
@@ -15,6 +16,9 @@ int main(int argc, char** argv) {
     //someFunction();
     // Initialize the MPI environment
     MPI_Init(NULL, NULL);
+
+    TestAll();
+
     int res;
 
     // Get the number of processes
@@ -43,7 +47,7 @@ int main(int argc, char** argv) {
     DoubleBlock_print(dbl_blk);
     
     DistBlockMatrix mat;
-    DistBlockMatrix_init_zero(&mat, 131072*16, 256, world_size, world_rank);
+    DistBlockMatrix_init_zero(&mat, 8, 8, world_size, world_rank);
     // Vector vec;
     // Vector_init_zero(&vec, mat.global.nr_cols);
 

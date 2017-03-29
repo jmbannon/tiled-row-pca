@@ -4,6 +4,53 @@
 #include "DistBlockMatrixOperations.h"
 #include <mpi.h>
 
+int
+PerfTest_timer( char *name, int (*f)() ) {
+    Timer timer;
+    int world_rank;
+    int res;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+
+    Timer_start(&timer);
+    res = (*f)();
+    Timer_end(&timer);
+
+    if (world_range == 0) {
+        printf("%s: %lf\n", Timer_dur_sec(&timer));
+    }
+
+    return res;
+}
+
+int PerfTest_run_colmeans2(int rows,
+                           int cols)
+{
+    if (samples <= 0 || attrs <= 0) {
+        return INVALID_DIMS; 
+    }
+    int world_size;
+    int world_rank;
+    
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+    
+    DistBlockMatrix mat;
+    DistBlockMatrix_init_zero(&mat, rows, cols, world_size, world_rank);
+
+    Vector global_col_means;
+    res = Vector_init_zero(&global_col_means, mat.global.nr_cols);
+    CHECK_ZERO_RETURN(res);
+    
+    res = DistBlockMatrix_seq(&mat, world_rank);
+    CHECK_ZERO_RETURN(res);
+
+    res = PerfTest_timer("Col means", DistBlockMatrix_column_means(&mat, &global_col_means));
+    CHECK_ZERO_RETURN(res);
+
+    return 0;
+}
+
 /**
  * Initializes a sequential matrix and wraps a timer around
  * the Column Means function. Prints time on root node.

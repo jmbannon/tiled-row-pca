@@ -9,29 +9,45 @@
 #include <stdlib.h>
 
 /**
- * Initializes a block matrix. Boolean param specifying whether to
- * actually allocate memory for it.
- *
- * @param mat Matrix to initialize.
- * @param nr_rows Number of rows.
- * @param nr_cols Number of columns.
- * @param init_data Boolean specifying whether to allocate memory
- *                  for matrix data.
+ * Sets the matrix's dimension meta-info.
  */
-static int
-BlockMatrix_init_zero_flag(BlockMatrix *mat,
+static void
+BlockMatrix_set_dimensions(BlockMatrix *mat,
                            int nr_rows,
-                           int nr_cols,
-                           bool init_data)
+                           int nr_cols)
 {
     mat->nr_rows = nr_rows;
     mat->nr_cols = nr_cols;
     mat->nr_blk_rows = nr_rows / BLK_LEN + (nr_rows % BLK_LEN != 0);
     mat->nr_blk_cols = nr_cols / BLK_LEN + (nr_cols % BLK_LEN != 0);
-    if (init_data) {
-        int nr_elements = mat->nr_blk_rows * mat->nr_blk_cols * BLK_SIZE;
-        mat->data = (double *)calloc(nr_elements, sizeof(double));
-        CHECK_MALLOC_RETURN(mat->data);
+}
+
+/**
+ * Initializes a matrix's meta-info but does not allocate
+ * memory for its data.
+ */
+int
+BlockMatrix_init_info(BlockMatrix *mat,
+                      int nr_rows,
+                      int nr_cols)
+{
+    BlockMatrix_set_dimensions(mat, nr_rows, nr_cols);
+    return 0;
+}
+
+/**
+ * Initialize a matrix with the specified constant.
+ */
+int
+BlockMatrix_init_constant(BlockMatrix *mat, int nr_rows, int nr_cols, double constant)
+{
+    BlockMatrix_set_dimensions(mat, nr_rows, nr_cols);
+    int size = mat->nr_blk_rows * mat->nr_blk_cols * BLK_SIZE;
+    mat->data = (double *)malloc(size * sizeof(double));
+    CHECK_MALLOC_RETURN(mat->data);
+    
+    for (int i = 0; i < size; i++) {
+        mat->data[i] = constant;
     }
 
     return 0;
@@ -39,33 +55,16 @@ BlockMatrix_init_zero_flag(BlockMatrix *mat,
 
 /**
  * Initializes a matrix with 0s.
- *
- * @param mat Matrix to initialize.
- * @param nr_rows Number of rows.
- * @param nr_cols Number of columns.
  */
 int
 BlockMatrix_init_zero(BlockMatrix *mat,
                       int nr_rows,
                       int nr_cols)
 {
-    return BlockMatrix_init_zero_flag(mat, nr_rows, nr_cols, true);
-}
-
-/**
- * Initializes a matrix's meta-info but does not allocate
- * memory for its data.
- *
- * @param mat Matrix to initialize info.
- * @paran nr_rows Number of rows.
- * @param nr_cols Number of columns.
- */
-int
-BlockMatrix_init_info(BlockMatrix *mat,
-                      int nr_rows,
-                      int nr_cols)
-{
-    return BlockMatrix_init_zero_flag(mat, nr_rows, nr_cols, false);
+    BlockMatrix_set_dimensions(mat, nr_rows, nr_cols);
+    int size = mat->nr_blk_rows * mat->nr_blk_cols * BLK_SIZE;
+    mat->data = (double *)calloc(size, sizeof(double));
+    CHECK_MALLOC_RETURN(mat->data);
 }
 
 int
@@ -115,6 +114,13 @@ BlockMatrix_print_padding(BlockMatrix *mat)
         }
         printf(" %d %d \n", i, j);
     }
+}
+
+int
+BlockMatrix_free(BlockMatrix *mat)
+{
+    free(mat->data);
+    return 0;
 }
 
 int test_1()

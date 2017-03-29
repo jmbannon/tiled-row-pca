@@ -8,6 +8,7 @@
 #include "error.h"
 #include "Timer.h"
 #include "constants.h"
+#include "TMP_CUDA.h"
 #include <mpi.h>
 #include <omp.h>
 #include <stdio.h>
@@ -22,8 +23,13 @@ DistBlockMatrix_column_means(DistBlockMatrix *mat,
     res = Vector_init_zero(&local_col_means, mat->global.nr_cols);
     CHECK_ZERO_RETURN(res);
     
-    res = BlockMatrix_column_sums(&mat->local, &local_col_means, 1.0 / mat->global.nr_rows);
+    //res = BlockMatrix_column_sums(&mat->local, &local_col_means, 1.0 / mat->global.nr_rows);
+    res = matrixColumnSums(&mat->local, &local_col_means, 1.0 / mat->global.nr_rows);
     CHECK_ZERO_RETURN(res);
+
+    BlockMatrix_print_blocks(&mat->local);
+
+    Vector_print_blocks(&local_col_means);
 
     MPI_Allreduce(local_col_means.data,
                   col_means->data,
