@@ -26,3 +26,4 @@ BlockMatrixVector_sub(BlockMatrix *mat,
     }
     return 0;
 }
+

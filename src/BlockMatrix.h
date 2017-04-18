@@ -62,6 +62,12 @@ BlockMatrix_print_blocks(BlockMatrix *mat);
 void
 BlockMatrix_print_padding(BlockMatrix *mat);
 
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+BlockMatrix_to_device(BlockMatrix *in, double **d_in);
+
 int
 test_1();
 

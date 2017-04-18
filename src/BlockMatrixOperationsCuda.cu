@@ -2,6 +2,7 @@
 #include "BlockMatrix.h"
 #include "Vector.h"
 #include "constants.h"
+#include "error.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <stdio.h>
@@ -38,33 +39,47 @@ __global__ void matrixColumnSumsKernel(double *in, double *out, int nrBlkCols, d
 }
 
 extern "C"
+int CudaBlockMatrix_cuda_column_sums(BlockMatrix *in, double *d_in, double *d_out, double scalar)
+{
+	dim3 dimGrid(in->nr_cols, 1);
+	dim3 dimBlock(1, in->nr_blk_rows);
+	
+    matrixColumnSumsKernel<<<dimGrid, dimBlock>>>(d_in, d_out, in->nr_blk_cols, scalar);
+    return 0;
+}
+
+// TODO: Check Cuda returns
+extern "C"
 int CudaBlockMatrix_column_sums(BlockMatrix *in, double *d_in, Vector *out, double scalar)
 {
+	int res = 0;
 	double *d_out = NULL;
 	const int outSize = in->nr_blk_cols * BLK_LEN * sizeof(double);
 
 	cudaMalloc((void **)&d_out, outSize);
 
-	dim3 dimGrid(in->nr_cols, 1);
-	dim3 dimBlock(1, in->nr_blk_rows);
+	res = CudaBlockMatrix_cuda_column_sums(in, d_in, d_out, scalar);
+	CHECK_ZERO_RETURN(res);
 	
-    matrixColumnSumsKernel<<<dimGrid, dimBlock>>>(d_in, d_out, in->nr_blk_cols, scalar);
     cudaMemcpy(out->data, d_out, outSize, cudaMemcpyDeviceToHost);
 
+    cudaFree(d_out);
     return 0;
 }
 
+// TODO: Check Cuda returns
 extern "C"
 int BlockMatrix_column_sums(BlockMatrix *in, Vector *out, double scalar)
 {
-	int nrBlks = in->nr_blk_rows * in->nr_blk_cols;
 	double *d_in;
+	int res = BlockMatrix_to_device(in, &d_in);
+	CHECK_ZERO_RETURN(res);
 
-	const int inSize = nrBlks * BLK_SIZE * sizeof(double);
-	cudaMalloc((void **)&d_in, inSize);
+	res = CudaBlockMatrix_column_sums(in, d_in, out, scalar);
+	CHECK_ZERO_RETURN(res);
 
-	cudaMemcpy(d_in, in->data, inSize, cudaMemcpyHostToDevice);
-	return CudaBlockMatrix_column_sums(in, d_in, out, scalar);
+	cudaFree(d_in);
+	return 0;
 }
 
 
