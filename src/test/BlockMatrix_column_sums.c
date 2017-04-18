@@ -11,7 +11,6 @@
 #include "../error.h"
 #include "../Timer.h"
 #include "../constants.h"
-#include "../TMP_CUDA.h"
 
 #include <mpi.h>
 #include <omp.h>
@@ -38,7 +37,7 @@ int Test_BlockMatrix_column_sums()
     res = Vector_init_zero(&columnSums, matrix.nr_cols);
     CHECK_ZERO_RETURN(res);
     
-    res = matrixColumnSums(&matrix, &columnSums, scalar);
+    res = BlockMatrix_column_sums(&matrix, &columnSums, scalar);
     CHECK_ZERO_RETURN(res);
 
     double expectedOutput = constant * nrRows * scalar;

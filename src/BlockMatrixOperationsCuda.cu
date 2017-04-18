@@ -1,4 +1,4 @@
-#include "TMP_CUDA.h"
+#include "BlockMatrixOperations.h"
 #include "BlockMatrix.h"
 #include "Vector.h"
 #include "constants.h"
@@ -40,7 +40,7 @@ __global__ void matrixColumnSumsKernel(double *in, double *out, int nrBlkCols, d
 }
 
 extern "C"
-int matrixColumnSums(BlockMatrix *in, Vector *out, double scalar)
+int BlockMatrix_column_sums(BlockMatrix *in, Vector *out, double scalar)
 {
 	int nrBlks = in->nr_blk_rows * in->nr_blk_cols;
 	double *d_in, *d_out;

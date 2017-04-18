@@ -7,7 +7,6 @@
 #include "error.h"
 #include "test/BlockTest.h"
 #include "test/Tests.h"
-#include "TMP_CUDA.h"
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
