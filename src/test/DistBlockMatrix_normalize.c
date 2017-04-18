@@ -12,6 +12,7 @@
 #include "../error.h"
 #include "../Timer.h"
 #include "../constants.h"
+#include "DoubleCompare.h"
 
 #include <mpi.h>
 #include <omp.h>
@@ -21,35 +22,59 @@
 int Test_DistBlockMatrix_normalize()
 {
     int res;
-    int nrRows = 400;
-    int nrCols = 400;
+    int nrRows = 8;
+    int nrCols = 8;
 
     int constant = 1.0;
     int scalar = 2.0;
 
+    // Get the number of processes
+    int world_size;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+
     /////////////////////////////////////////////////
 
-    Vector columnSums;
-    BlockMatrix matrix;
+    DistBlockMatrix mat;
+    Vector col_means;
 
-    res = BlockMatrix_init_constant(&matrix, nrRows, nrCols, constant);
-    CHECK_ZERO_RETURN(res); 
+    printf("are we where1");
 
-    res = Vector_init_zero(&columnSums, matrix.nr_cols);
-    CHECK_ZERO_RETURN(res);
-    
-    res = BlockMatrix_column_sums(&matrix, &columnSums, scalar);
+    res = DistBlockMatrix_init_zero(&mat, nrRows, nrCols, world_size, world_rank);
     CHECK_ZERO_RETURN(res);
 
-    double expectedOutput = constant * nrRows * scalar;
+    printf("are we where1.5");
+
+    res = Vector_init(&col_means, mat.global.nr_cols);
+    CHECK_ZERO_RETURN(res);
+
+    printf("are we where2");
+
+    res = DistBlockMatrix_seq(&mat, world_rank);
+    CHECK_ZERO_RETURN(res);
+
+    DistBlockMatrix_print_blocks(&mat, world_rank);
+
+    res = DistBlockMatrix_normalize(&mat);
+    CHECK_ZERO_RETURN(res);
+
+    res = DistBlockMatrix_column_means(&mat, &col_means);
+    CHECK_ZERO_RETURN(res);
+
+    printf("are we where");
+
     bool equals = true;
-
-    int i;
+    int i = 0;
     while (i < nrCols && equals) {
-    	equals = (columnSums.data[i++] == expectedOutput);
+    	equals = DoubleCompare(col_means.data[i], 0.0);
+    	++i;
     }
 
-    BlockMatrix_free(&matrix);
-    Vector_free(&columnSums);
-    return 0;
+    DistBlockMatrix_free(&mat, world_rank);
+    Vector_free(&col_means);
+
+    return equals ? 0 : 1;
 }

@@ -11,6 +11,7 @@
 #include "../error.h"
 #include "../Timer.h"
 #include "../constants.h"
+#include "DoubleCompare.h"
 
 #include <mpi.h>
 #include <omp.h>
@@ -43,12 +44,13 @@ int Test_BlockMatrix_column_sums()
     double expectedOutput = constant * nrRows * scalar;
     bool equals = true;
 
-    int i;
+    int i = 0;
     while (i < nrCols && equals) {
-    	equals = (columnSums.data[i++] == expectedOutput);
+        //printf("%lf %lf", columnSums.data[i], expectedOutput);
+    	equals = DoubleCompare(columnSums.data[i++], expectedOutput);
     }
 
     BlockMatrix_free(&matrix);
     Vector_free(&columnSums);
-    return 0;
+    return equals ? 0 : 1;
 }

@@ -19,14 +19,13 @@ DistBlockMatrix_column_means(DistBlockMatrix *mat,
     int res;
     Vector local_col_means;
 
-    res = Vector_init_zero(&local_col_means, mat->global.nr_cols);
+    res = Vector_init(&local_col_means, mat->global.nr_cols);
     CHECK_ZERO_RETURN(res);
     
-    //res = BlockMatrix_column_sums(&mat->local, &local_col_means, 1.0 / mat->global.nr_rows);
     res = BlockMatrix_column_sums(&mat->local, &local_col_means, 1.0 / mat->global.nr_rows);
     CHECK_ZERO_RETURN(res);
 
-    BlockMatrix_print_blocks(&mat->local);
+    //BlockMatrix_print_blocks(&mat->local);
 
     Vector_print_blocks(&local_col_means);
 

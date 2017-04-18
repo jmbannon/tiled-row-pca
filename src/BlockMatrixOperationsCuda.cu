@@ -16,6 +16,7 @@ void someFunction(void) {
 __global__ void matrixColumnSumsKernel(double *in, double *out, int nrBlkCols, double scalar)
 {
 	__shared__ double localColSum;
+
 	// Each thread handles a single Block column
 	int col = blockIdx.x;
 
@@ -31,6 +32,10 @@ __global__ void matrixColumnSumsKernel(double *in, double *out, int nrBlkCols, d
 		blockColSum += in[idx];
 	}
 
+	if (row == 0) {
+		localColSum = 0;
+	}
+	__syncthreads();
 	atomicAdd(&localColSum, blockColSum);
 	__syncthreads();
 
