@@ -14,4 +14,9 @@ extern "C"
 #endif
 int BlockMatrix_column_sums(BlockMatrix *in, Vector *out, double scalar);
 
+#ifdef __cplusplus
+extern "C"
+#endif
+int CudaBlockMatrix_column_sums(BlockMatrix *in, double *d_in, Vector *out, double scalar);
+
 #endif
