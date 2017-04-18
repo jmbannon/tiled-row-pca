@@ -25,10 +25,6 @@ DistBlockMatrix_column_means(DistBlockMatrix *mat,
     res = BlockMatrix_column_sums(&mat->local, &local_col_means, 1.0 / mat->global.nr_rows);
     CHECK_ZERO_RETURN(res);
 
-    //BlockMatrix_print_blocks(&mat->local);
-
-    Vector_print_blocks(&local_col_means);
-
     MPI_Allreduce(local_col_means.data,
                   col_means->data,
                   col_means->nr_blk_elems * BLK_LEN,
@@ -51,11 +47,8 @@ DistBlockMatrix_normalize(DistBlockMatrix *mat)
     res = DistBlockMatrix_column_means(mat, &col_means);
     CHECK_ZERO_RETURN(res);
     
-    Timer timer;
-    Timer_start(&timer);    
     res = BlockMatrixVector_sub(&mat->local, &col_means);
-    Timer_end(&timer);    
-    printf("Col sums time: %lf\n", Timer_dur_sec(&timer));    
+    CHECK_ZERO_RETURN(res);
     
     Vector_free(&col_means);
     return res;

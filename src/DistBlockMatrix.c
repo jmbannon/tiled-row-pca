@@ -99,10 +99,8 @@ DistBlockMatrix_free(DistBlockMatrix *mat,
 {
     free(mat->node_row_count);
     free(mat->node_row_start);
-    if (curr_node == 0) {
-        free(mat->global.data);
-    }
-    free(mat->local.data);
+    BlockMatrix_free(&mat->global);
+    BlockMatrix_free(&mat->local);
     return 0;
 }
 

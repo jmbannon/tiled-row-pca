@@ -33,9 +33,9 @@ int TestAll() {
 	for (int i = 0; i < testCount; i++) {
 		res = (*tests[i].testFunction) ();
 		if (res != 0) {
-			printf("FAILURE %*s\n", MAX_TEST_NAME, tests[i].name);
+			printf("FAILURE  -  %s\n", tests[i].name);
 		} else {
-			printf("SUCCESS %*s\n", MAX_TEST_NAME, tests[i].name);
+			printf("SUCCESS  -  %s\n", tests[i].name);
 		}
 	}
 	printf("\n");

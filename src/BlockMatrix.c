@@ -20,6 +20,7 @@ BlockMatrix_set_dimensions(BlockMatrix *mat,
     mat->nr_cols = nr_cols;
     mat->nr_blk_rows = nr_rows / BLK_LEN + (nr_rows % BLK_LEN != 0);
     mat->nr_blk_cols = nr_cols / BLK_LEN + (nr_cols % BLK_LEN != 0);
+    mat->data = NULL;
 }
 
 /**
@@ -63,8 +64,11 @@ BlockMatrix_init_zero(BlockMatrix *mat,
 {
     BlockMatrix_set_dimensions(mat, nr_rows, nr_cols);
     int size = mat->nr_blk_rows * mat->nr_blk_cols * BLK_SIZE;
+
     mat->data = (double *)calloc(size, sizeof(double));
     CHECK_MALLOC_RETURN(mat->data);
+
+    return 0;
 }
 
 int
@@ -119,7 +123,9 @@ BlockMatrix_print_padding(BlockMatrix *mat)
 int
 BlockMatrix_free(BlockMatrix *mat)
 {
-    free(mat->data);
+    if (mat->data != NULL) {
+        free(mat->data);
+    }
     return 0;
 }
 
