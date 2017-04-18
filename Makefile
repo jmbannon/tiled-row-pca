@@ -3,6 +3,7 @@ include make.inc
 # - CC ----------------------------------------------------------------
 
 EXEC            = row-tile-pca
+TEST_EXEC       = test-row-tile-pca
 CC              = nvcc -m64
 FCC             = gfortran
 
@@ -26,20 +27,32 @@ DEVICE_FLAGS    = ${SHARED_FLAGS} -arch=${CUDA_ARCH} ${CUDA_INCL}
 
 # - SRC ----------------------------------------------------------------
 
-DEVICE_SRC      = $(wildcard src/*.cu src/*.c src/test/*.c)
-HOST_SRC        = $(wildcard src/*.c src/test/*.c)
+TEST_SRC        = $(wildcard src/test/*.c)
+MAIN_SRC        = $(wildcard src/main/*.c)
+DEVICE_SRC      = $(wildcard src/*.cu src/*.c)
+HOST_SRC        = $(wildcard src/*.c)
 
 # - Make ---------------------------------------------------------------
 
-all: build clean
+all: main test clean
 
-build: gpu cpu
+main: gpu_compile cpu_compile main_compile
 	$(CC) -o $(EXEC) *.o $(HOST_FLAGS)
-cpu:
+
+test: gpu_compile cpu_compile test_compile
+	$(CC) -o $(TEST_EXEC) *.o $(HOST_FLAGS)
+
+main_compile:
+	$(CC) -c $(HOST_FLAGS) $(MAIN_SRC)
+
+test_compile:
+	$(CC) -c $(HOST_FLAGS) $(TEST_SRC)
+
+cpu_compile:
 	$(CC) -c $(HOST_FLAGS) $(HOST_SRC)
 
-gpu:
+gpu_compile:
 	$(CC) -c $(DEVICE_FLAGS) ${HOST_FLAGS} $(DEVICE_SRC)
 
 clean:
-	rm *.o
+	rm -f *.o

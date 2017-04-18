@@ -46,7 +46,7 @@ DistBlockMatrix_normalize(DistBlockMatrix *mat)
 {
     int res;
     Vector col_means;
-    res = Vector_init_zero(&col_means, mat->global.nr_cols);
+    res = Vector_init(&col_means, mat->global.nr_cols);
     CHECK_ZERO_RETURN(res);
     
     res = DistBlockMatrix_column_means(mat, &col_means);
