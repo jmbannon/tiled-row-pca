@@ -27,4 +27,40 @@ Vector_print_blocks(Vector *vec);
 void
 Vector_free(Vector *vec);
 
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+Vector_size_bytes(Vector *in);
+
+/**
+ * Copies data from host to device.
+ */
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+Vector_copy_host_to_device(Vector *in);
+
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+Vector_copy_device_to_host(Vector *in);
+
+/**
+ * CudaMalloc device vector.
+ */
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+Vector_init_device(Vector *in);
+
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+Vector_free_device(Vector *in);
+
 #endif

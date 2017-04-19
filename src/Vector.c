@@ -14,6 +14,12 @@ Vector_set_dimensions(Vector *vec, int nr_elements)
     vec->data_d = NULL;
 }
 
+int
+Vector_size_bytes(Vector *vec)
+{
+    return vec->nr_blk_elems * BLK_LEN * sizeof(double);
+}
+
 double*
 Vector_get_block(Vector *vec,
                  int blk_nr)
