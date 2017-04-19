@@ -43,9 +43,18 @@ int Test_BlockMatrix_column_sums()
 
     res = Vector_init_zero(&columnSums, matrix.nr_cols);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to init zero vector");
+
+    res = Vector_init_device(&columnSums);
+    CHECK_ZERO_ERROR_RETURN(res, "failed to init device vector");
     
     res = BlockMatrix_device_column_sums(&matrix, &columnSums, scalar);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to calculate BlockMatrix device column sums");
+
+    res = Vector_copy_device_to_host(&columnSums);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to copy device to host");
+
+    res = Vector_free_device(&columnSums);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to free device vector");
 
     double expectedOutput = constant * nrRows * scalar;
     bool equals = true;

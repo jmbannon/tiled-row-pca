@@ -20,8 +20,17 @@ DistBlockMatrix_device_column_means(DistBlockMatrix *mat,
 
     res = Vector_init(&local_col_means, mat->global.nr_cols);
     CHECK_ZERO_RETURN(res);
+
+    res = Vector_init_device(&local_col_means);
+    CHECK_ZERO_RETURN(res);
     
     res = BlockMatrix_device_column_sums(&mat->local, &local_col_means, 1.0 / mat->global.nr_rows);
+    CHECK_ZERO_RETURN(res);
+
+    res = Vector_copy_device_to_host(&local_col_means);
+    CHECK_ZERO_RETURN(res);
+
+    res = Vector_free_device(&local_col_means);
     CHECK_ZERO_RETURN(res);
 
     MPI_Allreduce(local_col_means.data,
