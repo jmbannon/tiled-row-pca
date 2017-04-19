@@ -21,6 +21,7 @@ BlockMatrix_set_dimensions(BlockMatrix *mat,
     mat->nr_blk_rows = nr_rows / BLK_LEN + (nr_rows % BLK_LEN != 0);
     mat->nr_blk_cols = nr_cols / BLK_LEN + (nr_cols % BLK_LEN != 0);
     mat->data = NULL;
+    mat->data_d = NULL;
 }
 
 /**
@@ -34,6 +35,15 @@ BlockMatrix_init_info(BlockMatrix *mat,
 {
     BlockMatrix_set_dimensions(mat, nr_rows, nr_cols);
     return 0;
+}
+
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+BlockMatrix_size_bytes(BlockMatrix *mat)
+{
+    return mat->nr_blk_rows * mat->nr_blk_cols * BLK_SIZE * sizeof(double);
 }
 
 /**

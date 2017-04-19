@@ -16,7 +16,8 @@ typedef struct _BlockMatrix {
     int nr_blk_rows;   // Number of block rows
     int nr_blk_cols;   // Number of block columns
 
-    double *data;
+    double *data;      // Host data
+    double *data_d;    // Device data
 } BlockMatrix;
 
 int
@@ -66,7 +67,37 @@ BlockMatrix_print_padding(BlockMatrix *mat);
 extern "C"
 #endif
 int
-BlockMatrix_to_device(BlockMatrix *in, double **d_in);
+BlockMatrix_size_bytes(BlockMatrix *mat);
+
+/**
+ * Copies data from host to device.
+ */
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+BlockMatrix_copy_host_to_device(BlockMatrix *in);
+
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+BlockMatrix_copy_device_to_host(BlockMatrix *in);
+
+/**
+ * CudaMalloc device matrix.
+ */
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+BlockMatrix_init_device(BlockMatrix *in);
+
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+BlockMatrix_free_device(BlockMatrix *in);
 
 int
 test_1();

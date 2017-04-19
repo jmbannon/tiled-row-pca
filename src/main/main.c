@@ -10,11 +10,15 @@
 #include <stdlib.h>
 
 int main(int argc, char** argv) {
-    //someFunction();
+    int rows = 8;
+    int cols = 8;
+
+    printf("Calculating current PCA work on sized %dx%d sequential matrix.\n", rows, cols);
+
     // Initialize the MPI environment
     MPI_Init(NULL, NULL);
 
-    int res;
+    int res = 0;
 
     // Get the number of processes
     int world_size;
@@ -23,51 +27,21 @@ int main(int argc, char** argv) {
     // Get the rank of the process
     int world_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-
-    // Get the name of the processor
-    char processor_name[MPI_MAX_PROCESSOR_NAME];
-    int name_len;
-    MPI_Get_processor_name(processor_name, &name_len);
-
-    double *block;
-    res = Block_init_seq(&block);
-    CHECK_ZERO_RETURN(res);
-
-    // Block_print(block);
-    res = Block_zero_tri(block, false, true);
-    Block_print(block);
-    printf("nope\n");
-    double *dbl_blk;
-    DoubleBlock_init_rbind(&dbl_blk, block, block);
-    DoubleBlock_print(dbl_blk);
     
     DistBlockMatrix mat;
-    DistBlockMatrix_init_zero(&mat, 8, 8, world_size, world_rank);
-    // Vector vec;
-    // Vector_init_zero(&vec, mat.global.nr_cols);
+    DistBlockMatrix_init_zero(&mat, rows, cols, world_size, world_rank);
 
     res = DistBlockMatrix_seq(&mat, world_rank);
     CHECK_ZERO_RETURN(res);
 
-    Timer timer;
-    MPI_Barrier(MPI_COMM_WORLD);
-    Timer_start(&timer);    
-    res = DistBlockMatrix_normalize(&mat);
-    MPI_Barrier(MPI_COMM_WORLD);
-    Timer_end(&timer);
+    res = DistBlockMatrix_copy_host_to_device(&mat);
     CHECK_ZERO_RETURN(res);
 
-    if (world_rank == 0) {
-        printf("Matrix normalization: %lf\n", Timer_dur_sec(&timer));
-    }
-  
-    //DistBlockMatrix_print_blocks(&mat, world_rank);  
+    res = DistBlockMatrix_normalize(&mat);
+    CHECK_ZERO_RETURN(res);
+
     DistBlockMatrix_free(&mat, world_rank);
-   
-    //test_DGEQT3();
-    //test_Block_init_rbind();
-    //test_Block_tri();
-    //test_DGEQT2();    
+
     MPI_Finalize();
     return 0;
 }

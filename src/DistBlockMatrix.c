@@ -116,3 +116,29 @@ DistBlockMatrix_print_blocks(DistBlockMatrix *mat,
         }
     }
 }
+
+/**
+ * Copies data from host to device.
+ */
+int
+DistBlockMatrix_copy_host_to_device(DistBlockMatrix *in) {
+    return BlockMatrix_copy_host_to_device(&in->local);
+}
+
+int
+DistBlockMatrix_copy_device_to_host(DistBlockMatrix *in) {
+    return BlockMatrix_copy_device_to_host(&in->local);
+}
+
+/**
+ * CudaMalloc device matrix.
+ */
+int
+DistBlockMatrix_init_device(DistBlockMatrix *in) {
+    return BlockMatrix_init_device(&in->local);
+}
+
+int
+DistBlockMatrix_free_device(DistBlockMatrix *in) {
+    return BlockMatrix_free_device(&in->local);
+}

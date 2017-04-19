@@ -33,20 +33,25 @@ int Test_BlockMatrix_column_sums()
     BlockMatrix matrix;
 
     res = BlockMatrix_init_constant(&matrix, nrRows, nrCols, constant);
-    CHECK_ZERO_RETURN(res); 
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to init constant"); 
+
+    res = BlockMatrix_init_device(&matrix);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to init device");
+
+    res = BlockMatrix_copy_host_to_device(&matrix);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to copy from host to device");
 
     res = Vector_init_zero(&columnSums, matrix.nr_cols);
-    CHECK_ZERO_RETURN(res);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to init zero vector");
     
-    res = BlockMatrix_column_sums(&matrix, &columnSums, scalar);
-    CHECK_ZERO_RETURN(res);
+    res = BlockMatrix_device_column_sums(&matrix, &columnSums, scalar);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to calculate BlockMatrix device column sums");
 
     double expectedOutput = constant * nrRows * scalar;
     bool equals = true;
 
     int i = 0;
     while (i < nrCols && equals) {
-        //printf("%lf %lf", columnSums.data[i], expectedOutput);
     	equals = DoubleCompare(columnSums.data[i++], expectedOutput);
     }
 

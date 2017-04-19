@@ -12,16 +12,11 @@ BlockMatrix_get_block(BlockMatrix *mat,
 #ifdef __cplusplus
 extern "C"
 #endif
-int BlockMatrix_column_sums(BlockMatrix *in, Vector *out, double scalar);
+int BlockMatrix_device_column_sums(BlockMatrix *in, Vector *out, double scalar);
 
 #ifdef __cplusplus
 extern "C"
 #endif
-int CudaBlockMatrix_column_sums(BlockMatrix *in, double *d_in, Vector *out, double scalar);
-
-#ifdef __cplusplus
-extern "C"
-#endif
-int CudaBlockMatrix_cuda_column_sums(BlockMatrix *in, double *d_in, double *d_out, double scalar);
+int CudaBlockMatrix_cuda_column_sums(BlockMatrix *in, double *d_out, double scalar);
 
 #endif

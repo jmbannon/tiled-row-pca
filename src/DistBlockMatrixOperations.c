@@ -1,4 +1,3 @@
-#include "DistBlockMatrixOperations.h"
 #include "BlockMatrix.h"
 #include "Block.h"
 #include "BlockMatrixOperations.h"
@@ -22,7 +21,7 @@ DistBlockMatrix_column_means(DistBlockMatrix *mat,
     res = Vector_init(&local_col_means, mat->global.nr_cols);
     CHECK_ZERO_RETURN(res);
     
-    res = BlockMatrix_column_sums(&mat->local, &local_col_means, 1.0 / mat->global.nr_rows);
+    res = BlockMatrix_device_column_sums(&mat->local, &local_col_means, 1.0 / mat->global.nr_rows);
     CHECK_ZERO_RETURN(res);
 
     MPI_Allreduce(local_col_means.data,

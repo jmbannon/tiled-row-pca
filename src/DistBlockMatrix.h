@@ -49,4 +49,23 @@ void
 DistBlockMatrix_print_blocks(DistBlockMatrix *mat,
                              int curr_node);
 
+/**
+ * Copies local data from host to device.
+ */
+int
+DistBlockMatrix_copy_host_to_device(DistBlockMatrix *in);
+
+int
+DistBlockMatrix_copy_device_to_host(DistBlockMatrix *in);
+
+/**
+ * CudaMalloc device local matrix.
+ */
+int
+DistBlockMatrix_init_device(DistBlockMatrix *in);
+
+
+int
+DistBlockMatrix_free_device(DistBlockMatrix *in);
+
 #endif
