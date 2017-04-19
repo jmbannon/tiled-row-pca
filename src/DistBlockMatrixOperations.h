@@ -10,8 +10,8 @@
  * @param col_means Vector to store column means in.
  */
 int
-DistBlockMatrix_column_means(DistBlockMatrix *mat,
-                             Vector *col_means);
+DistBlockMatrix_device_column_means(DistBlockMatrix *mat,
+                                    Vector *col_means);
 
 /**
  * Normalizes a matrix by subtracting each column by its respective column means.

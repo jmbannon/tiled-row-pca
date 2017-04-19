@@ -62,7 +62,7 @@ int Test_DistBlockMatrix_normalize()
     res = DistBlockMatrix_copy_host_to_device(&mat);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to copy host to device dist matrix after normalization");
 
-    res = DistBlockMatrix_column_means(&mat, &col_means);
+    res = DistBlockMatrix_device_column_means(&mat, &col_means);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to calculate column means of dist matrix");
 
     bool equals = true;

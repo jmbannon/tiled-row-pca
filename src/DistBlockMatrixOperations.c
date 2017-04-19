@@ -12,8 +12,8 @@
 #include <stdio.h>
 
 int
-DistBlockMatrix_column_means(DistBlockMatrix *mat,
-                             Vector *col_means)
+DistBlockMatrix_device_column_means(DistBlockMatrix *mat,
+                                    Vector *col_means)
 {
     int res;
     Vector local_col_means;
@@ -43,7 +43,7 @@ DistBlockMatrix_normalize(DistBlockMatrix *mat)
     res = Vector_init(&col_means, mat->global.nr_cols);
     CHECK_ZERO_RETURN(res);
     
-    res = DistBlockMatrix_column_means(mat, &col_means);
+    res = DistBlockMatrix_device_column_means(mat, &col_means);
     CHECK_ZERO_RETURN(res);
     
     res = BlockMatrixVector_sub(&mat->local, &col_means);
