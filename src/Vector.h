@@ -5,6 +5,7 @@ typedef struct _Vector {
     int nr_elems;
     int nr_blk_elems;
     double *data;
+    double *data_d;
 } Vector;
 
 int

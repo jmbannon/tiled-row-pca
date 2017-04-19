@@ -5,6 +5,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+void
+Vector_set_dimensions(Vector *vec, int nr_elements)
+{
+    vec->nr_elems = nr_elements;
+    vec->nr_blk_elems = nr_elements / BLK_LEN + (nr_elements % BLK_LEN != 0);
+    vec->data = NULL;
+    vec->data_d = NULL;
+}
+
 double*
 Vector_get_block(Vector *vec,
                  int blk_nr)
@@ -20,8 +29,7 @@ int
 Vector_init(Vector *vec,
             int nr_elements)
 {
-    vec->nr_elems = nr_elements;
-    vec->nr_blk_elems = nr_elements / BLK_LEN + (nr_elements % BLK_LEN != 0);
+    Vector_set_dimensions(vec, nr_elements);
     vec->data = malloc(vec->nr_blk_elems * BLK_LEN * sizeof(double));
     CHECK_MALLOC_RETURN(vec->data);
     return 0;
@@ -31,8 +39,7 @@ int
 Vector_init_zero(Vector *vec,
                  int nr_elements)
 {
-    vec->nr_elems = nr_elements;
-    vec->nr_blk_elems = nr_elements / BLK_LEN + (nr_elements % BLK_LEN != 0);
+    Vector_set_dimensions(vec, nr_elements);
     vec->data = calloc(vec->nr_blk_elems * BLK_LEN, sizeof(double));
     CHECK_MALLOC_RETURN(vec->data);
     return 0;
