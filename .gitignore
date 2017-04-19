@@ -4,4 +4,4 @@ lapack_cwrapper/
 row-tile-pca
 test-row-tile-pca
 make.inc
-
+*.sh
