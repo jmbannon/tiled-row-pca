@@ -7,7 +7,7 @@
 #include <cuda_runtime.h>
 #include <stdio.h>
 
-__global__ void matrixColumnSumsKernel(double *in, double *out, int nrBlkCols, double scalar)
+__global__ void device_column_sums(double *in, double *out, int nrBlkCols, double scalar)
 {
 	__shared__ double localColSum;
 
@@ -44,7 +44,7 @@ int BlockMatrix_device_column_sums(BlockMatrix *in, Vector *out, double scalar)
     dim3 dimGrid(in->nr_cols, 1);
     dim3 dimBlock(1, in->nr_blk_rows);
     
-    matrixColumnSumsKernel<<<dimGrid, dimBlock>>>(in->data_d, out->data_d, in->nr_blk_cols, scalar);
+    device_column_sums<<<dimGrid, dimBlock>>>(in->data_d, out->data_d, in->nr_blk_cols, scalar);
     return 0;
 }
 
