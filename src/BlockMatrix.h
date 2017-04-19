@@ -104,7 +104,4 @@ extern "C"
 int
 BlockMatrix_free_device(BlockMatrix *in);
 
-int
-test_1();
-
 #endif

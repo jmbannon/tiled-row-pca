@@ -154,33 +154,3 @@ BlockMatrix_free(BlockMatrix *mat)
     return 0;
 }
 
-int test_1()
-{
-    // note, to understand this part take a look in the MAN pages, at section of parameters.
-    char    TRANS = 'N';
-    int     INFO=3;
-    int     LDA = 3;
-    int     LDB = 3;
-    int     N = 3;
-    int     NRHS = 1;
-    int     IPIV[3] ;
- 
-    double  A[9] =
-    {
-    1, 2, 3,
-    2, 3, 4,
-    3, 4, 1
-    };
- 
-    double B[3] =
-    {
-    -4,
-    -1,
-    -2
-    };
-// end of declarations
- 
-    //void LAPACK_dgetrf( lapack_int* m, lapack_int* n, double* a, lapack_int* lda, lapack_int* ipiv, lapack_int *info );
-    LAPACK_dgetrf(&N,&N,A,&LDA,IPIV,&INFO);
-    return 0;
-}
