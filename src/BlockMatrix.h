@@ -21,6 +21,11 @@ typedef struct _BlockMatrix {
 } BlockMatrix;
 
 int
+BlockMatrix_init(BlockMatrix *mat,
+                 int nr_rows,
+                 int nr_cols);
+
+int
 BlockMatrix_init_constant(BlockMatrix *mat,
 	                      int nr_rows,
 	                      int nr_cols,

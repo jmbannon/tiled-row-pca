@@ -46,17 +46,32 @@ BlockMatrix_size_bytes(BlockMatrix *mat)
     return mat->nr_blk_rows * mat->nr_blk_cols * BLK_SIZE * sizeof(double);
 }
 
-/**
- * Initialize a matrix with the specified constant.
- */
 int
-BlockMatrix_init_constant(BlockMatrix *mat, int nr_rows, int nr_cols, double constant)
+BlockMatrix_init(BlockMatrix *mat,
+                 int nr_rows,
+                 int nr_cols)
 {
     BlockMatrix_set_dimensions(mat, nr_rows, nr_cols);
     int size = mat->nr_blk_rows * mat->nr_blk_cols * BLK_SIZE;
     mat->data = (double *)malloc(size * sizeof(double));
     CHECK_MALLOC_RETURN(mat->data);
-    
+
+    return 0;
+}
+
+/**
+ * Initialize a matrix with the specified constant.
+ */
+int
+BlockMatrix_init_constant(BlockMatrix *mat,
+                          int nr_rows,
+                          int nr_cols,
+                          double constant)
+{
+    int res = BlockMatrix_init(mat, nr_rows, nr_cols);
+    CHECK_ZERO_RETURN(res);
+
+    int size = mat->nr_blk_rows * mat->nr_blk_cols * BLK_SIZE;
     for (int i = 0; i < size; i++) {
         mat->data[i] = constant;
     }
