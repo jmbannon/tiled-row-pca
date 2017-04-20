@@ -56,7 +56,7 @@ int Test_DistBlockMatrix_normalize()
     res = DistBlockMatrix_copy_host_to_device(&mat);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to copy host to device dist matrix");
 
-    res = DistBlockMatrix_normalize(&mat);
+    res = DistBlockMatrix_global_normalize(&mat);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to normalize dist matrix");
 
     res = DistBlockMatrix_copy_host_to_device(&mat);

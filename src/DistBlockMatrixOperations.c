@@ -45,7 +45,7 @@ DistBlockMatrix_device_column_means(DistBlockMatrix *mat,
 }
 
 int
-DistBlockMatrix_normalize(DistBlockMatrix *mat)
+DistBlockMatrix_global_normalize(DistBlockMatrix *mat)
 {
     int res;
     Vector col_means;

@@ -18,6 +18,6 @@ DistBlockMatrix_device_column_means(DistBlockMatrix *mat,
  * @param mat Matrix to normalize.
  */
 int
-DistBlockMatrix_normalize(DistBlockMatrix *mat);
+DistBlockMatrix_global_normalize(DistBlockMatrix *mat);
 
 #endif

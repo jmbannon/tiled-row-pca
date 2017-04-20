@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
 int main(int argc, char** argv) {
     int rows = 8;
     int cols = 8;
@@ -34,10 +35,13 @@ int main(int argc, char** argv) {
     res = DistBlockMatrix_seq(&mat, world_rank);
     CHECK_ZERO_RETURN(res);
 
+    // Computation begins:
+    ////////////////////////////////////////////////////////////////////////////
+
     res = DistBlockMatrix_copy_host_to_device(&mat);
     CHECK_ZERO_RETURN(res);
 
-    res = DistBlockMatrix_normalize(&mat);
+    res = DistBlockMatrix_global_normalize(&mat);
     CHECK_ZERO_RETURN(res);
 
     DistBlockMatrix_free(&mat, world_rank);

@@ -23,7 +23,7 @@ void addTest(char *name,
 
 void addAllTests() {
 	addTest("Test_BlockMatrix_column_sums", Test_BlockMatrix_column_sums);
-	addTest("Test_DistBlockMatrix_normalize", Test_DistBlockMatrix_normalize);
+	addTest("Test_DistBlockMatrix_global_normalize", Test_DistBlockMatrix_normalize);
 	addTest("Test_BlockMatrixVector_sub", Test_BlockMatrixVector_sub);
 }
 
