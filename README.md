@@ -27,3 +27,6 @@ We must subtract the global column means from every column.
 2. Broadcast principal components
 3. Multiply original local matrix with principal components
 
+## References
+[1] http://www.math.cuhk.edu.hk/~rchan/paper/grid.pdf
+[2] http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.167.5534&rep=rep1&type=pdf
