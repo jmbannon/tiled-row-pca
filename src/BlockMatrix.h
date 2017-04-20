@@ -5,9 +5,14 @@
 #ifndef _BLOCK_MATRIX_H
 #define _BLOCK_MATRIX_H
 
+#define BLK_ROW(i) ((i) / BLK_LEN)
+#define BLK_COL(j) ((j) / BLK_LEN)
+
+#define BLK_I(i) ((i) % BLK_LEN)
+#define BLK_J(j) ((j) % BLK_LEN)
+
 /* Translates a row,col index to a block format index (column-wise) */
-#define POS(i,j,nr_blk_cols) \
-((((i) / BLK_LEN) * (nr_blk_cols) * BLK_SIZE) + (((j) / BLK_LEN) * BLK_SIZE) + (((j) % BLK_LEN) * BLK_LEN) + ((i) % BLK_LEN))
+#define POS(i,j,nr_blk_cols) ((BLK_ROW(i) * nr_blk_cols * BLK_SIZE) + (BLK_COL(j) * BLK_SIZE) + (BLK_J(j) * BLK_LEN) + BLK_I(i))
 
 typedef struct _BlockMatrix {
     int nr_rows;   // Number of rows
