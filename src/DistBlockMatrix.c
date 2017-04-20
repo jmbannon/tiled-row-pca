@@ -79,8 +79,8 @@ int
 DistBlockMatrix_seq(DistBlockMatrix *mat,
                     int curr_node)
 {
-    int counter = mat->node_row_start[curr_node] * mat->local.nr_cols;
-    int idx, i, j;
+    uint64_t counter = mat->node_row_start[curr_node] * mat->local.nr_cols;
+    uint64_t idx, i, j;
     for (i = 0; i < mat->local.nr_rows; i++) {
         for (j = 0; j < mat->local.nr_cols; j++) {
             idx = POS(i,j,mat->local.nr_blk_cols);
