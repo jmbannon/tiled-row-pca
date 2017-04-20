@@ -1,15 +1,17 @@
+#include "constants.h"
+
 #ifndef BLOCK_OPERATIONS_H_
 #define BLOCK_OPERATIONS_H_
 
 #include "Block.h"
 
 void
-Block_col_sums(double *block,
-               double *vec);
+Block_col_sums(Numeric *block,
+               Numeric *vec);
 
 void
-Block_sub_vec(double *block,
-              double *vec);
+Block_sub_vec(Numeric *block,
+              Numeric *vec);
 
 /**
  * Helper function for QR.R
@@ -23,23 +25,23 @@ Block_sub_vec(double *block,
  * @return T1 T for Q = I + Y %*% T %*% t(Y)
  */ 
 int
-Block_DGEQT2(double *A,
-             double *T1);
+Block_DGEQT2(Numeric *A,
+             Numeric *T1);
 
 int
-Block_DLARFB(double *A,
-             double *VR,
-             double *T1);
+Block_DLARFB(Numeric *A,
+             Numeric *VR,
+             Numeric *T1);
 
 int
-Block_DTSQT2(double *VRin,
-             double *T1inout,
-             double **VRout);
+Block_DTSQT2(Numeric *VRin,
+             Numeric *T1inout,
+             Numeric **VRout);
 
 int
-Block_DSSRFB3(double *A_kn,
-              double *A_mn,
-              double *V_mk,
-              double *T1_mk);
+Block_DSSRFB3(Numeric *A_kn,
+              Numeric *A_mn,
+              Numeric *V_mk,
+              Numeric *T1_mk);
 
 #endif

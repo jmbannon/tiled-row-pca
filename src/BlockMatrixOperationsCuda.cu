@@ -7,9 +7,9 @@
 #include <cuda_runtime.h>
 #include <stdio.h>
 
-__global__ void device_column_sums(double *in, double *out, int nrBlkCols, double scalar)
+__global__ void device_column_sums(Numeric *in, Numeric *out, int nrBlkCols, Numeric scalar)
 {
-	__shared__ double localColSum;
+	__shared__ Numeric localColSum;
 
 	// Each thread handles a single Block column
 	int col = blockIdx.x;
@@ -21,7 +21,7 @@ __global__ void device_column_sums(double *in, double *out, int nrBlkCols, doubl
 	int idx = POS(row, col, nrBlkCols);
 	int idxMax = idx + BLK_LEN;
 
-	double blockColSum = 0.0;
+	Numeric blockColSum = 0.0;
 	for (; idx < idxMax; idx++) {
 		blockColSum += in[idx];
 	}
@@ -39,7 +39,7 @@ __global__ void device_column_sums(double *in, double *out, int nrBlkCols, doubl
 }
 
 extern "C"
-int BlockMatrix_device_column_sums(BlockMatrix *in, Vector *out, double scalar)
+int BlockMatrix_device_column_sums(BlockMatrix *in, Vector *out, Numeric scalar)
 {
     dim3 dimGrid(in->nr_cols, 1);
     dim3 dimBlock(1, in->nr_blk_rows);

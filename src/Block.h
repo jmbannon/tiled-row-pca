@@ -1,3 +1,5 @@
+#include "constants.h"
+
 #ifndef _BLOCK_H
 #define _BLOCK_H
 
@@ -8,14 +10,14 @@
  * @param dbl_blk Block to malloc.
  */
 int
-Block_init(double **blk);
+Block_init(Numeric **blk);
 
 /**
  * Inits a BLK_LEN x BLK_LEN column-wise zero-matrix.
  * @param dbl_blk Block to calloc.
  */
 int
-Block_init_zero(double **blk);
+Block_init_zero(Numeric **blk);
 
 /**
  * Inits a BLK_LEN x BLK_LEN column-wise sequential matrix.
@@ -25,13 +27,13 @@ Block_init_zero(double **blk);
  * @param blk Block to allocate.
  */
 int
-Block_init_seq(double **blk);
+Block_init_seq(Numeric **blk);
 
 /**
  * Prints a Block in matrix format.
  */
 void
-Block_print(double *blk);
+Block_print(Numeric *blk);
 
 /**
  * Retrieves a single value from a Block.
@@ -41,7 +43,7 @@ Block_print(double *blk);
  * @param data Pointer to fill with data.
  */
 int
-Block_get_elem(double *blk, int i, int j, double *data);
+Block_get_elem(Numeric *blk, int i, int j, Numeric *data);
 
 /**
  * Zeros out the either the upper-right or bottom-left corner (triangle)
@@ -53,6 +55,6 @@ Block_get_elem(double *blk, int i, int j, double *data);
  *             If false do not zero the diagonal.
  */
 int
-Block_zero_tri(double *blk, bool upper, bool diag);
+Block_zero_tri(Numeric *blk, bool upper, bool diag);
 
 #endif

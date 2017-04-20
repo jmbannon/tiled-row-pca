@@ -8,7 +8,7 @@
 #include <cblas.h>
 #include <stdio.h>
 
-double*
+Numeric*
 BlockMatrix_get_block(BlockMatrix *mat,
                       int blk_i,
                       int blk_j)

@@ -6,15 +6,15 @@
 #include <string.h>
 
 int
-DoubleBlock_init(double **dbl_blk)
+DoubleBlock_init(Numeric **dbl_blk)
 {
-    *dbl_blk = (double *)malloc(4 * BLK_SIZE * sizeof(double));
+    *dbl_blk = (Numeric *)malloc(4 * BLK_SIZE * sizeof(Numeric));
     CHECK_MALLOC_RETURN(*dbl_blk);
     return 0;
 }
 
 int
-DoubleBlock_init_diag(double **dbl_blk)
+DoubleBlock_init_diag(Numeric **dbl_blk)
 {
     int res = DoubleBlock_init(dbl_blk);
     CHECK_ZERO_RETURN(res);
@@ -24,20 +24,20 @@ DoubleBlock_init_diag(double **dbl_blk)
 }
 
 int
-DoubleBlock_init_rbind(double **rbind, double *top, double *bot)
+DoubleBlock_init_rbind(Numeric **rbind, Numeric *top, Numeric *bot)
 {
-    *rbind = (double *)malloc(BLK_SIZE * 2 * sizeof(double));
+    *rbind = (Numeric *)malloc(BLK_SIZE * 2 * sizeof(Numeric));
     CHECK_MALLOC_RETURN(*rbind);
 
     for (int j = 0; j < BLK_LEN; j++) {
-        memcpy(&(*rbind)[j * (BLK_LEN * 2)], &top[j * BLK_LEN], BLK_LEN * sizeof(double));
-        memcpy(&(*rbind)[j * (BLK_LEN * 2) + BLK_LEN], &bot[j * BLK_LEN], BLK_LEN * sizeof(double));
+        memcpy(&(*rbind)[j * (BLK_LEN * 2)], &top[j * BLK_LEN], BLK_LEN * sizeof(Numeric));
+        memcpy(&(*rbind)[j * (BLK_LEN * 2) + BLK_LEN], &bot[j * BLK_LEN], BLK_LEN * sizeof(Numeric));
     }
     return 0;
 }
 
 void
-DoubleBlock_print(double *dbl_blk)
+DoubleBlock_print(Numeric *dbl_blk)
 {
     for (int i = 0; i < BLK_LEN * 2; i++) {
         for (int j = 0; j < BLK_LEN; j++) {
@@ -48,7 +48,7 @@ DoubleBlock_print(double *dbl_blk)
 }
 
 int
-DoubleBlock_free(double **dbl_blk)
+DoubleBlock_free(Numeric **dbl_blk)
 {
     free(*dbl_blk);
 }

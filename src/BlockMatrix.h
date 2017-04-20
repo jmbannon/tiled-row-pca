@@ -1,6 +1,7 @@
 #include "Vector.h"
 #include "Block.h"
 #include "lapacke.h"
+#include "constants.h"
 
 #ifndef _BLOCK_MATRIX_H
 #define _BLOCK_MATRIX_H
@@ -21,8 +22,8 @@ typedef struct _BlockMatrix {
     int nr_blk_rows;   // Number of block rows
     int nr_blk_cols;   // Number of block columns
 
-    double *data;      // Host data
-    double *data_d;    // Device data
+    Numeric *data;      // Host data
+    Numeric *data_d;    // Device data
 } BlockMatrix;
 
 int
@@ -34,7 +35,7 @@ int
 BlockMatrix_init_constant(BlockMatrix *mat,
 	                      int nr_rows,
 	                      int nr_cols,
-	                      double constant);
+	                      Numeric constant);
 
 /**
  * Initializes a matrix with 0s.

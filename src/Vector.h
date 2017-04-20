@@ -1,11 +1,13 @@
+#include "constants.h"
+
 #ifndef _VECTOR_H
 #define _VECTOR_H
 
 typedef struct _Vector {
     int nr_elems;
     int nr_blk_elems;
-    double *data;
-    double *data_d;
+    Numeric *data;
+    Numeric *data_d;
 } Vector;
 
 int
@@ -19,9 +21,9 @@ Vector_init_zero(Vector *vec,
 int
 Vector_init_constant(Vector *vec,
                      int nr_elements,
-                     double constant);
+                     Numeric constant);
 
-double*
+Numeric*
 Vector_get_block(Vector *vec,
                  int blk_nr);
 

@@ -4,14 +4,15 @@
 #include "BlockOperations.h"
 #include "Vector.h"
 #include "error.h"
+#include "constants.h"
 
 int
 BlockMatrixVector_sub(BlockMatrix *mat,
                       Vector *vec)
 {
     int res;
-    double *mat_blk;
-    double *vec_blk;
+    Numeric *mat_blk;
+    Numeric *vec_blk;
     
     if (mat->nr_cols != vec->nr_elems) {
         return INVALID_DIMS;   

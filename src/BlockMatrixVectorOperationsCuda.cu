@@ -8,7 +8,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-__global__ void device_sub(double *in, double *vec, int nrBlkCols)
+__global__ void device_sub(Numeric *in, Numeric *vec, int nrBlkCols)
 {
 
 	int row = BLK_LEN * blockIdx.y;

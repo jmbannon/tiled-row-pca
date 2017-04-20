@@ -16,6 +16,7 @@ DistBlockMatrix_host_global_column_means(DistBlockMatrix *mat,
                                          Vector *local_col_means,
                                          Vector *global_col_means)
 {
+    // TODO: Have one that supports floats and doubles
     MPI_Allreduce(local_col_means->data,
                   global_col_means->data,
                   global_col_means->nr_blk_elems * BLK_LEN,

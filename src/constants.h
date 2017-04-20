@@ -1,6 +1,8 @@
 #ifndef _BLOCK_DIST_PCA_CONSTANTS_H
 #define _BLOCK_DIST_PCA_CONSTANTS_H
 
+typedef double Numeric;
+
 /** Default Block Attributes
  *
  *  BLK_LEN   row/col length for block matrix

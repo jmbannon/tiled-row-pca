@@ -84,7 +84,7 @@ DistBlockMatrix_seq(DistBlockMatrix *mat,
     for (i = 0; i < mat->local.nr_rows; i++) {
         for (j = 0; j < mat->local.nr_cols; j++) {
             idx = POS(i,j,mat->local.nr_blk_cols);
-            mat->local.data[idx] = (double)counter++;
+            mat->local.data[idx] = (Numeric)counter++;
         }
     }
     return 0;

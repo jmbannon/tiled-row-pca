@@ -56,7 +56,7 @@ int Test_BlockMatrix_column_sums()
     res = Vector_free_device(&columnSums);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to free device vector");
 
-    double expectedOutput = constant * nrRows * scalar;
+    Numeric expectedOutput = constant * nrRows * scalar;
     bool equals = true;
 
     int i = 0;

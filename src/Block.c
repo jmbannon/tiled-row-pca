@@ -6,34 +6,34 @@
 #include "constants.h"
 
 int
-Block_init(double **blk)
+Block_init(Numeric **blk)
 {
-    *blk = (double *)malloc(BLK_SIZE * sizeof(double));
+    *blk = (Numeric *)malloc(BLK_SIZE * sizeof(Numeric));
     CHECK_MALLOC_RETURN(*blk);
     return 0;
 }
 
 int
-Block_init_zero(double **blk)
+Block_init_zero(Numeric **blk)
 {
-    *blk = (double *)calloc(BLK_SIZE, sizeof(double));
+    *blk = (Numeric *)calloc(BLK_SIZE, sizeof(Numeric));
     CHECK_MALLOC_RETURN(*blk);
     return 0;
 }
 
 int
-Block_init_seq(double **blk)
+Block_init_seq(Numeric **blk)
 {
     int res = Block_init(blk);
     CHECK_ZERO_RETURN(res);
     for (int i = 0; i < BLK_SIZE; i++) {
-        (*blk)[i] = (double)i;
+        (*blk)[i] = (Numeric)i;
     }
     return 0;
 }
 
 int
-Block_init_diag(double **blk)
+Block_init_diag(Numeric **blk)
 {
     int res = Block_init_zero(blk);
     CHECK_ZERO_RETURN(res);
@@ -45,7 +45,7 @@ Block_init_diag(double **blk)
 
 
 int
-Block_get_elem(double *blk, int i, int j, double *data)
+Block_get_elem(Numeric *blk, int i, int j, Numeric *data)
 {
     const int pos = GET_BLK_POS(i, j);
     if (pos < 0 || pos > BLK_SIZE) {
@@ -57,7 +57,7 @@ Block_get_elem(double *blk, int i, int j, double *data)
 }
 
 void
-Block_print(double *blk)
+Block_print(Numeric *blk)
 {
     for (int i = 0; i < BLK_LEN; i++) {
         for (int j = 0; j < BLK_LEN; j++) {
@@ -68,7 +68,7 @@ Block_print(double *blk)
 }
 
 static int
-_Block_zero_lower_tri_diag(double *blk)
+_Block_zero_lower_tri_diag(Numeric *blk)
 {
     for (int j = 0; j < BLK_LEN; j++) {
         for (int i = j; i < BLK_LEN; i++) {
@@ -79,7 +79,7 @@ _Block_zero_lower_tri_diag(double *blk)
 }
 
 static int
-_Block_zero_lower_tri(double *blk)
+_Block_zero_lower_tri(Numeric *blk)
 {
     for (int j = 0; j < BLK_LEN; j++) {
         for (int i = j+1; i < BLK_LEN; i++) {
@@ -90,7 +90,7 @@ _Block_zero_lower_tri(double *blk)
 }
 
 static int
-_Block_zero_upper_tri_diag(double *blk)
+_Block_zero_upper_tri_diag(Numeric *blk)
 {
     for (int j = 0; j < BLK_LEN; j++) {
         for (int i = 0; i <= j; i++) {
@@ -101,7 +101,7 @@ _Block_zero_upper_tri_diag(double *blk)
 }
 
 static int
-_Block_zero_upper_tri(double *blk)
+_Block_zero_upper_tri(Numeric *blk)
 {
     for (int j = 0; j < BLK_LEN; j++) {
         for (int i = 0; i < j; i++) {
@@ -112,7 +112,7 @@ _Block_zero_upper_tri(double *blk)
 }
 
 int
-Block_zero_tri(double *blk, bool upper, bool diag)
+Block_zero_tri(Numeric *blk, bool upper, bool diag)
 {
     int res;
     if (upper) {

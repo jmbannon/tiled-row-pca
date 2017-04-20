@@ -1,3 +1,5 @@
+#include "constants.h"
+
 #ifndef _DOUBLE_BLOCK_H_
 #define _DOUBLE_BLOCK_H_
 
@@ -6,14 +8,14 @@
  * @param dbl_blk DoubleBlock to malloc.
  */
 int
-DoubleBlock_init(double **dbl_blk);
+DoubleBlock_init(Numeric **dbl_blk);
 
 /**
  * Inits a 2*BLK_LEN x 2*BLK_LEN column-wise identity matrix.
  * @param dbl_blk DoubleBlock to allocate memory for.
  */
 int
-DoubleBlock_init_diag(double **dbl_blk);
+DoubleBlock_init_diag(Numeric **dbl_blk);
 
 /**
  * Inits a 2*BLK_LEN x 2*BLK_LEN column-wsie matrix by row-binding
@@ -23,18 +25,18 @@ DoubleBlock_init_diag(double **dbl_blk);
  * @param bot Bottom Block to copy.
  */
 int
-DoubleBlock_init_rbind(double **rbind, double *top, double *bot);
+DoubleBlock_init_rbind(Numeric **rbind, Numeric *top, Numeric *bot);
 
 /**
  * Prints a DoubleBlock in matrix format.
  */
 void
-DoubleBlock_print(double *dbl_blk);
+DoubleBlock_print(Numeric *dbl_blk);
 
 /**
  * Frees a DoubleBlock.
  */
 int
-DoubleBlock_free(double **dbl_blk);
+DoubleBlock_free(Numeric **dbl_blk);
 
 #endif

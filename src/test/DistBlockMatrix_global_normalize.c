@@ -25,8 +25,8 @@ int Test_DistBlockMatrix_normalize()
     int nrRows = 8;
     int nrCols = 8;
 
-    int constant = 1.0;
-    int scalar = 2.0;
+    Numeric constant = 1.0;
+    Numeric scalar = 2.0;
 
     // Get the number of processes
     int world_size;

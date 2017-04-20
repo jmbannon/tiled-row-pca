@@ -9,8 +9,8 @@
 #include "constants.h"
 
 void
-Block_col_sums(double *block,
-               double *col_sum)
+Block_col_sums(Numeric *block,
+               Numeric *col_sum)
 {
     for (int i = 0; i < BLK_SIZE; i++) {
         col_sum[i / BLK_LEN] += block[i]; 
@@ -21,8 +21,8 @@ Block_col_sums(double *block,
  * Subtracts block vector from block.
  */
 void
-Block_sub_vec(double *block,
-              double *vec)
+Block_sub_vec(Numeric *block,
+              Numeric *vec)
 {
     for (int i = 0; i < BLK_SIZE; i++) {
         block[i] -= vec[i / BLK_LEN];
@@ -30,8 +30,8 @@ Block_sub_vec(double *block,
 }
 
 static int
-_Block_DGEQT2_internal(double *A,
-                       double *T1,
+_Block_DGEQT2_internal(Numeric *A,
+                       Numeric *T1,
                        int rows,
                        int cols)
 {
@@ -48,16 +48,16 @@ _Block_DGEQT2_internal(double *A,
 }
 
 int
-Block_DGEQT2(double *A,
-             double *T1)
+Block_DGEQT2(Numeric *A,
+             Numeric *T1)
 {
     return _Block_DGEQT2_internal(A, T1, BLK_LEN, BLK_LEN);
 }
 
 int
-Block_DTSQT2(double *VRin,
-             double *T1inout,
-             double **VRout)
+Block_DTSQT2(Numeric *VRin,
+             Numeric *T1inout,
+             Numeric **VRout)
 {
     int res = Block_zero_tri(VRin, false, false);
     CHECK_ZERO_RETURN(res);
@@ -67,19 +67,19 @@ Block_DTSQT2(double *VRin,
 }
 
 int
-Block_DLARFB(double *A,
-             double *VR,
-             double *T1)
+Block_DLARFB(Numeric *A,
+             Numeric *VR,
+             Numeric *T1)
 {
     char SIDE = 'L';
     char TRANS = 'T';
     char DIRECT = 'F';
     char STOREV = 'C';
     int N = BLK_LEN;
-    double *V = VR;
-    double *T = T1;
-    double *C = A;
-    double *WORK = malloc(BLK_SIZE * sizeof(double));
+    Numeric *V = VR;
+    Numeric *T = T1;
+    Numeric *C = A;
+    Numeric *WORK = malloc(BLK_SIZE * sizeof(Numeric));
     int WLDA = BLK_SIZE;
     CHECK_MALLOC_RETURN(WORK);
     
@@ -96,9 +96,9 @@ Block_DLARFB(double *A,
  *
  */
 static inline void
-_cblas_dgemm(double *A,
-             double *B,
-             double *C,
+_cblas_dgemm(Numeric *A,
+             Numeric *B,
+             Numeric *C,
              int A_nr_rows,
              int A_nr_cols,
              int B_nr_cols,
@@ -107,25 +107,25 @@ _cblas_dgemm(double *A,
              int A_ld,
              int B_ld,
              int C_ld,
-             double alpha,
-             double beta)
+             Numeric alpha,
+             Numeric beta)
 {
     cblas_dgemm(CblasColMajor, A_op, B_op, A_nr_rows, B_nr_cols, A_nr_cols, alpha, A, A_ld, B, B_ld, beta, C, C_ld);
 }
 
 
 int
-Block_DSSRFB3(double *A_kn,
-              double *A_mn,
-              double *V_mk,
-              double *T1_mk)
+Block_DSSRFB3(Numeric *A_kn,
+              Numeric *A_mn,
+              Numeric *V_mk,
+              Numeric *T1_mk)
 {
     int res;
-    double *tmp_diag_blk;
-    double *V_mk_orig;
-    double *dbl_diag;
-    double *V_mk_T1_tmp;
-    double *A_kn_A_mn;
+    Numeric *tmp_diag_blk;
+    Numeric *V_mk_orig;
+    Numeric *dbl_diag;
+    Numeric *V_mk_T1_tmp;
+    Numeric *A_kn_A_mn;
 
     // TODO: Create a function that inits a diag on top of an existing block
     res = Block_init(&tmp_diag_blk);

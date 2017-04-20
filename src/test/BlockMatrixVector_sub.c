@@ -20,8 +20,8 @@ int Test_BlockMatrixVector_sub()
     int nrRows = 400;
     int nrCols = 400;
 
-    int constant = 5.5;
-    const double expectedOutput = 0.0;
+    const Numeric constant = 5.5;
+    const Numeric expectedOutput = 0.0;
 
     /////////////////////////////////////////////////
 

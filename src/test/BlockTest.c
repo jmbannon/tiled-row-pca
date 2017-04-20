@@ -5,11 +5,12 @@
 #include "../Block.h"
 #include "../DoubleBlock.h"
 #include "../BlockOperations.h"
+#include "../constants.h"
 
 int test_DGEQT2()
 {
     int res;
-    double *seq, *seqR, *seqT;
+    Numeric *seq, *seqR, *seqT;
 
     res = Block_init_seq(&seq);
     CHECK_ZERO_RETURN(res);
@@ -38,7 +39,7 @@ int test_DGEQT2()
 int test_DGEQT3()
 {
     int res;
-    double *seq, *seqR, *seqT, *rbind;
+    Numeric *seq, *seqR, *seqT, *rbind;
 
     res = Block_init_seq(&seq);
     CHECK_ZERO_RETURN(res);
@@ -59,7 +60,7 @@ int test_DGEQT3()
 int test_Block_tri()
 {
     int res;
-    double *seq;
+    Numeric *seq;
 
     for (int upper = 0; upper <= 1; upper++) {
         for (int diag = 0; diag <= 1; diag++) {
@@ -78,7 +79,7 @@ int test_Block_tri()
 int test_Block_init_rbind()
 {
     int res;
-    double *seq1, *seq2, *rbind;
+    Numeric *seq1, *seq2, *rbind;
     res = Block_init_seq(&seq1);
     CHECK_ZERO_RETURN(res);
     res = Block_init_seq(&seq2);
