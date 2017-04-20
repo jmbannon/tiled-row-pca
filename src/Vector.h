@@ -16,6 +16,11 @@ int
 Vector_init_zero(Vector *vec,
                  int nr_elements);
 
+int
+Vector_init_constant(Vector *vec,
+                     int nr_elements,
+                     double constant);
+
 double*
 Vector_get_block(Vector *vec,
                  int blk_nr);

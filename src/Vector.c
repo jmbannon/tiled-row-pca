@@ -42,6 +42,20 @@ Vector_init(Vector *vec,
 }
 
 int
+Vector_init_constant(Vector *vec,
+                     int nr_elements,
+                     double constant)
+{
+    int res = Vector_init(vec, nr_elements);
+    CHECK_ZERO_RETURN(res);
+
+    for (int i = 0; i < nr_elements; i++) {
+        vec->data[i] = constant;
+    }
+    return 0;
+}
+
+int
 Vector_init_zero(Vector *vec,
                  int nr_elements)
 {
