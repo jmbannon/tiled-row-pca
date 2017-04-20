@@ -12,6 +12,20 @@
 #include <stdio.h>
 
 int
+DistBlockMatrix_host_global_column_means(DistBlockMatrix *mat,
+                                         Vector *local_col_means,
+                                         Vector *global_col_means)
+{
+    MPI_Allreduce(local_col_means->data,
+                  global_col_means->data,
+                  global_col_means->nr_blk_elems * BLK_LEN,
+                  MPI_DOUBLE,
+                  MPI_SUM,
+                  MPI_COMM_WORLD);
+    return 0;
+}
+
+int
 DistBlockMatrix_device_column_means(DistBlockMatrix *mat,
                                     Vector *col_means)
 {
@@ -33,12 +47,8 @@ DistBlockMatrix_device_column_means(DistBlockMatrix *mat,
     res = Vector_free_device(&local_col_means);
     CHECK_ZERO_RETURN(res);
 
-    MPI_Allreduce(local_col_means.data,
-                  col_means->data,
-                  col_means->nr_blk_elems * BLK_LEN,
-                  MPI_DOUBLE,
-                  MPI_SUM,
-                  MPI_COMM_WORLD);
+    res = DistBlockMatrix_host_global_column_means(mat, &local_col_means, col_means);
+    CHECK_ZERO_RETURN(res);
 
     Vector_free(&local_col_means);
     return 0;

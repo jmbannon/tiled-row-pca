@@ -20,4 +20,10 @@ DistBlockMatrix_device_column_means(DistBlockMatrix *mat,
 int
 DistBlockMatrix_global_normalize(DistBlockMatrix *mat);
 
+// TODO: Move this to a vector operation class
+int
+DistBlockMatrix_host_global_column_means(DistBlockMatrix *mat,
+                                         Vector *local_col_means,
+                                         Vector *global_col_means);
+
 #endif
