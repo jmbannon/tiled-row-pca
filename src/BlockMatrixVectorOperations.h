@@ -13,4 +13,12 @@
 int
 BlockMatrixVector_sub(BlockMatrix *mat,
                       Vector *vec);
+
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+BlockMatrixVector_device_sub(BlockMatrix *in,
+							 Vector *vec);
+
 #endif
