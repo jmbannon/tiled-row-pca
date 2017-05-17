@@ -1,7 +1,14 @@
 #ifndef _BLOCK_DIST_PCA_CONSTANTS_H
 #define _BLOCK_DIST_PCA_CONSTANTS_H
 
+
+#define FLOAT_NUMERIC 0
+
+#if FLOAT_NUMERIC
+typedef float Numeric;
+#else
 typedef double Numeric;
+#endif
 
 /** Default Block Attributes
  *
