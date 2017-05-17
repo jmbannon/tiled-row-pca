@@ -7,12 +7,16 @@
 #include "../DoubleBlock.h"
 #include "../Timer.h"
 #include "../error.h"
+#include <cublas_v2.h>
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <cuda_runtime.h>
 
 
 int main(int argc, char** argv) {
+    int res = 0;
+
     int rows = 30000;
     int cols = 20000;
 
@@ -21,7 +25,9 @@ int main(int argc, char** argv) {
     // Initialize the MPI environment
     MPI_Init(NULL, NULL);
 
-    int res = 0;
+    cublasHandle_t cublas_handle;
+    res = cublasCreate(&cublas_handle);
+    CHECK_ERROR_RETURN(res != CUBLAS_STATUS_SUCCESS, "Failed to create cublas handle", 1);
 
     // Get the number of processes
     int world_size;
