@@ -18,7 +18,7 @@ LAPACK_LIB_INCL = ${LAPACK_LIB_DIR}/liblapack.a -l${FCC}
 LAPACK_C_INCL   = ${LAPACK_CWRAPPER}/liblapack_cwrapper.a -l${FCC}
 LAPACK          = ${LAPACK_LIB_INCL} ${LAPACK_C_INCL} ${LAPACK_ARGS}
 
-CUDA_FLAGS      = -lcuda -lcudart
+CUDA_FLAGS      = -lcuda -lcudart -lcublas
 CUDA_INCL       = -L${CUDA_LIB_DIR} ${CUDA_FLAGS}
 
 SHARED_FLAGS    = -Wno-deprecated-gpu-targets
@@ -37,13 +37,13 @@ HOST_SRC        = $(wildcard src/*.c)
 all: main test clean
 
 main: gpu_compile cpu_compile main_compile
-	$(CC) -o $(EXEC) *.o $(HOST_FLAGS)
+	$(CC) -o $(EXEC) *.o $(HOST_FLAGS) ${DEVICE_FLAGS}
 
 test: gpu_compile cpu_compile test_compile
 	$(CC) -o $(TEST_EXEC) *.o $(HOST_FLAGS)
 
 main_compile:
-	$(CC) -c $(HOST_FLAGS) $(MAIN_SRC)
+	$(CC) -c ${DEVICE_FLAGS} $(HOST_FLAGS) $(MAIN_SRC)
 
 test_compile:
 	$(CC) -c $(HOST_FLAGS) $(TEST_SRC)
