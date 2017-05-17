@@ -8,7 +8,7 @@
 int
 DoubleBlock_init(Numeric **dbl_blk)
 {
-    *dbl_blk = (Numeric *)malloc(4 * BLK_SIZE * sizeof(Numeric));
+    *dbl_blk = (Numeric *)malloc(4 * BLK_SIZE_MEM);
     CHECK_MALLOC_RETURN(*dbl_blk);
     return 0;
 }
@@ -26,12 +26,12 @@ DoubleBlock_init_diag(Numeric **dbl_blk)
 int
 DoubleBlock_init_rbind(Numeric **rbind, Numeric *top, Numeric *bot)
 {
-    *rbind = (Numeric *)malloc(BLK_SIZE * 2 * sizeof(Numeric));
+    *rbind = (Numeric *)malloc(2 * BLK_SIZE_MEM);
     CHECK_MALLOC_RETURN(*rbind);
 
     for (int j = 0; j < BLK_LEN; j++) {
-        memcpy(&(*rbind)[j * (BLK_LEN * 2)], &top[j * BLK_LEN], BLK_LEN * sizeof(Numeric));
-        memcpy(&(*rbind)[j * (BLK_LEN * 2) + BLK_LEN], &bot[j * BLK_LEN], BLK_LEN * sizeof(Numeric));
+        memcpy(&(*rbind)[j * (BLK_LEN * 2)], &top[j * BLK_LEN], BLK_LEN_MEM);
+        memcpy(&(*rbind)[j * (BLK_LEN * 2) + BLK_LEN], &bot[j * BLK_LEN], BLK_LEN_MEM);
     }
     return 0;
 }

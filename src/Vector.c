@@ -17,7 +17,7 @@ Vector_set_dimensions(Vector *vec, int nr_elements)
 int
 Vector_size_bytes(Vector *vec)
 {
-    return vec->nr_blk_elems * BLK_LEN * sizeof(Numeric);
+    return vec->nr_blk_elems * BLK_LEN_MEM;
 }
 
 Numeric*
@@ -36,7 +36,7 @@ Vector_init(Vector *vec,
             int nr_elements)
 {
     Vector_set_dimensions(vec, nr_elements);
-    vec->data = malloc(vec->nr_blk_elems * BLK_LEN * sizeof(Numeric));
+    vec->data = malloc(vec->nr_blk_elems * BLK_LEN_MEM);
     CHECK_MALLOC_RETURN(vec->data);
     return 0;
 }

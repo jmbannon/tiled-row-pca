@@ -43,7 +43,7 @@ extern "C"
 int
 BlockMatrix_size_bytes(BlockMatrix *mat)
 {
-    return mat->nr_blk_rows * mat->nr_blk_cols * BLK_SIZE * sizeof(Numeric);
+    return mat->nr_blk_rows * mat->nr_blk_cols * BLK_SIZE_MEM;
 }
 
 int
@@ -52,8 +52,7 @@ BlockMatrix_init(BlockMatrix *mat,
                  int nr_cols)
 {
     BlockMatrix_set_dimensions(mat, nr_rows, nr_cols);
-    int size = mat->nr_blk_rows * mat->nr_blk_cols * BLK_SIZE;
-    mat->data = (Numeric *)malloc(size * sizeof(Numeric));
+    mat->data = (Numeric *)malloc(BlockMatrix_size_bytes(mat));
     CHECK_MALLOC_RETURN(mat->data);
 
     return 0;

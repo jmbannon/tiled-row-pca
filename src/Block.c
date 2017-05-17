@@ -8,7 +8,7 @@
 int
 Block_init(Numeric **blk)
 {
-    *blk = (Numeric *)malloc(BLK_SIZE * sizeof(Numeric));
+    *blk = (Numeric *)malloc(BLK_SIZE_MEM);
     CHECK_MALLOC_RETURN(*blk);
     return 0;
 }
