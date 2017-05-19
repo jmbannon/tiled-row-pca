@@ -70,7 +70,7 @@ Matrix_init_diag(Matrix *mat,
 
 	int min = nr_rows < nr_cols ? nr_rows : nr_cols;
 	for (int i = 0; i < min; i++) {
-		mat->data[MAT_POS(i, i, mat->nr_rows)] = 1.0;
+		mat->data[MAT_POS(i, i, mat->nr_rows)] = constant;
 	}
 
 	return 0;
