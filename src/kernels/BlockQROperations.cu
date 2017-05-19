@@ -1,5 +1,7 @@
-#include "constants.h"
-#include "error.h"
+#include "../BlockQROperations.h"
+#include "../constants.h"
+#include "../error.h"
+#include "../Vector.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
@@ -35,4 +37,18 @@ __device__ void house(cublasHandle_t *handle, Numeric *x, Numeric *v, int n)
     	#endif
     }
     v[0] = 1.0;
+}
+
+__global__ void Block_house_kernel(cublasHandle_t *handle, Numeric *x, Numeric *v, int n) {
+    house(handle, x, v, n);
+}
+
+extern "C"
+int
+Block_house(cublasHandle_t *handle, Vector *in, Vector *out) {
+    dim3 dimGrid(1, 1);
+    dim3 dimBlock(1, 1);
+    
+    Block_house_kernel<<<dimGrid, dimBlock>>>(handle, in->data_d, out->data_d, in->nr_elems);
+    return 0;
 }
