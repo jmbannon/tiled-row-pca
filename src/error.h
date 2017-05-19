@@ -18,7 +18,7 @@ if (error_condition) \
 }
 
 #define CHECK_ZERO_RETURN(res) CHECK_RETURN((res) != 0, res)
-#define CHECK_ZERO_ERROR_RETURN(res, error_message) CHECK_ERROR_RETURN((res) != 0, error_message, 0)
+#define CHECK_ZERO_ERROR_RETURN(res, error_message) CHECK_ERROR_RETURN((res) != 0, error_message, res)
 
 #define CHECK_SUCCESS_RETURN(res) CHECK_RETURN((res) != cudaSuccess, 1)
 #define CHECK_MALLOC_RETURN(res) CHECK_RETURN((res) == NULL, MALLOC_FAIL)
