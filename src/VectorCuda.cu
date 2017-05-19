@@ -1,5 +1,4 @@
 #include "Vector.h"
-#include "Block.h"
 #include "error.h"
 #include "constants.h"
 #include <cuda.h>

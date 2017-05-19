@@ -3,8 +3,6 @@
 #ifndef BLOCK_OPERATIONS_H_
 #define BLOCK_OPERATIONS_H_
 
-#include "Block.h"
-
 void
 Block_col_sums(Numeric *block,
                Numeric *vec);

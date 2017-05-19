@@ -1,5 +1,4 @@
 #include "BlockMatrix.h"
-#include "Block.h"
 #include "error.h"
 #include "Vector.h"
 #include <stdbool.h>

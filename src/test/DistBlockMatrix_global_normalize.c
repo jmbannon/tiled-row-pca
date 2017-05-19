@@ -3,7 +3,6 @@
 #include "../DistBlockMatrixOperations.h"
 #include "../DistBlockMatrix.h"
 #include "../BlockMatrix.h"
-#include "../Block.h"
 #include "../BlockMatrixOperations.h"
 #include "../BlockMatrixVectorOperations.h"
 #include "../DistBlockMatrix.h"

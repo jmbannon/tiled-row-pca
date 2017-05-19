@@ -2,7 +2,6 @@
 #include "BlockMatrix.h"
 #include "constants.h"
 #include "BlockMatrixOperations.h"
-#include "BlockOperations.h"
 #include "Vector.h"
 #include "error.h"
 #include <cuda.h>

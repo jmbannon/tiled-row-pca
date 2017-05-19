@@ -4,7 +4,6 @@
 #include "../BlockMatrixVectorOperations.h"
 #include "../DistBlockMatrix.h"
 #include "../DistBlockMatrixOperations.h"
-#include "../DoubleBlock.h"
 #include "../Timer.h"
 #include "../error.h"
 #include <cublas_v2.h>
