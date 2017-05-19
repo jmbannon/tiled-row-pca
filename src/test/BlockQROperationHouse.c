@@ -1,9 +1,9 @@
 #include "../BlockQROperations.h"
 #include "../error.h"
 #include "../Vector.h"
-// #include <cuda.h>
-// #include <cublas_v2.h>
-// #include <cuda_runtime.h>
+#include <cuda.h>
+#include <cublas_v2.h>
+#include <cuda_runtime.h>
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -30,30 +30,30 @@ int Test_BlockQROperationHouse()
     Numeric *I;
     Numeric *P;
 
-    // cublasHandle_t cublas_handle;
+    cublasHandle_t cublas_handle;
 
-    // res = cublasCreate(&cublas_handle);
-    // CHECK_ERROR_RETURN(res != CUBLAS_STATUS_SUCCESS, "Failed to create cublas handle", 1);
+    res = cublasCreate(&cublas_handle);
+    CHECK_ERROR_RETURN(res != CUBLAS_STATUS_SUCCESS, "Failed to create cublas handle", 1);
 
-    // res = Vector_init_constant(&x, n, constant);
-    // CHECK_ZERO_ERROR_RETURN(res, "Failed to init constant");
+    res = Vector_init_constant(&x, n, constant);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to init constant");
 
-    // res = Vector_init_device(&x);
-    // CHECK_ZERO_ERROR_RETURN(res, "Failed to init constant on device");
+    res = Vector_init_device(&x);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to init constant on device");
 
-    // res = Vector_init_constant(&v, n, constant);
-    // CHECK_ZERO_ERROR_RETURN(res, "Failed to init constant");
+    res = Vector_init_constant(&v, n, constant);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to init constant");
 
-    // res = Vector_init_device(&v);
-    // CHECK_ZERO_ERROR_RETURN(res, "Failed to init constant on device");
+    res = Vector_init_device(&v);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to init constant on device");
 
-    // res = Vector_copy_host_to_device(&x);
-    // CHECK_ZERO_ERROR_RETURN(res, "Failed to copy vector from host to device");
+    res = Vector_copy_host_to_device(&x);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to copy vector from host to device");
 
-    // res = Block_house(&cublas_handle, &x, &v);
-    // CHECK_ZERO_ERROR_RETURN(res, "Block householder helper function failed");
+    res = Block_house(&cublas_handle, &x, &v);
+    CHECK_ZERO_ERROR_RETURN(res, "Block householder helper function failed");
 
 
-    bool equals = true;
+    bool equals = false;
     return equals ? 0 : 1;
 }
