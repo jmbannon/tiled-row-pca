@@ -53,6 +53,9 @@ Matrix_free(Matrix *mat);
  * @paran nr_rows Number of rows.
  * @param nr_cols Number of columns.
  */
+#ifdef __cplusplus
+extern "C"
+#endif
 int
 Matrix_init_info(Matrix *mat,
                  int nr_rows,
@@ -89,12 +92,40 @@ Matrix_copy_device_to_host(Matrix *in);
 extern "C"
 #endif
 int
-Matrix_init_device(Matrix *in);
+Matrix_init_device(Matrix *in,
+				   int nr_rows,
+				   int nr_cols);
 
 #ifdef __cplusplus
 extern "C"
 #endif
 int
 Matrix_free_device(Matrix *in);
+
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+Matrix_init_constant_device(Matrix *mat,
+	                        int nr_rows,
+	                        int nr_cols,
+	                        Numeric constant);
+
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+Matrix_init_diag_device(Matrix *mat,
+			            int nr_rows,
+			            int nr_cols,
+			            Numeric constant);
+
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+Matrix_init_zero_device(Matrix *mat,
+                 		int nr_rows,
+                 		int nr_cols);
 
 #endif

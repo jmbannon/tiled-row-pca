@@ -6,6 +6,9 @@
  * Initializes a matrix's meta-info but does not allocate
  * memory for its data.
  */
+#ifdef __cplusplus
+extern "C"
+#endif
 int
 Matrix_init_info(Matrix *mat,
                  int nr_rows,
