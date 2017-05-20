@@ -1,6 +1,7 @@
 #include "Matrix.h"
 #include "constants.h"
 #include "error.h"
+#include <stdio.h>
 
 /**
  * Initializes a matrix's meta-info but does not allocate
@@ -16,8 +17,6 @@ Matrix_init_info(Matrix *mat,
 {
     mat->nr_rows = nr_rows;
     mat->nr_cols = nr_cols;
-    mat->data = NULL;
-    mat->data_d = NULL;
     return 0;
 }
 
@@ -40,6 +39,19 @@ Matrix_init(Matrix *mat,
     CHECK_MALLOC_RETURN(mat->data);
 
     return 0;
+}
+
+int Matrix_print(Matrix *mat)
+{
+	const int max_width = 7;
+    int idx;
+    for (int i = 0; i < mat->nr_rows; i++) {
+        for (int j = 0; j < mat->nr_cols; j++) {
+            idx = MAT_POS(i, j, mat->nr_rows);
+            printf("%*.3f ", max_width, mat->data[idx]);
+        }
+        printf("\n");
+    }
 }
 
 int

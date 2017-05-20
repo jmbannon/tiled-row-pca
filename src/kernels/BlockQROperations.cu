@@ -5,6 +5,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
+#include <stdio.h>
 
 /**
   * Given an n-vector x, computes an n-vector v with v[0] = 1 such that (I - 2*v*t(v) / t(v) * v)x is 
@@ -17,23 +18,27 @@
   */
 __device__ void house(cublasHandle_t *handle, Numeric *x, Numeric *v, int n)
 {
+    cublasHandle_t handle2;
+    int res = cublasCreate(&handle2);
+
     Numeric x_norm;
+    res = 0;
 
     #if FLOAT_NUMERIC
-    	cublasScopy(*handle, n, x, 1, v, 1);
-    	cublasSnrm2(*handle, n, x, 1, &x_norm);
+    	res = cublasScopy(handle2, n, x, 1, v, 1);
+    	res = cublasSnrm2(handle2, n, x, 1, &x_norm);
     #else
-    	cublasDcopy(*handle, n, x, 1, v, 1);
-    	cublasDnrm2(*handle, n, x, 1, &x_norm);
+    	res = cublasDcopy(handle2, n, x, 1, v, 1);
+    	res = cublasDnrm2(handle2, n, x, 1, &x_norm);
     #endif
 
     if (x_norm != 0) {
     	const Numeric sign = x[0] >= 0 ? 1.0 : -1.0;
     	const Numeric beta = 1.0 / (x[0] + (sign * x_norm));
     	#if FLOAT_NUMERIC
-    		cublasSscal(*handle, n - 1, &beta, &v[1], 1);
+    		cublasSscal(handle2, n - 1, &beta, &v[1], 1);
     	#else
-    		cublasDscal(*handle, n - 1, &beta, &v[1], 1);
+    		cublasDscal(handle2, n - 1, &beta, &v[1], 1);
     	#endif
     }
     v[0] = 1.0;
@@ -45,10 +50,7 @@ __global__ void Block_house_kernel(cublasHandle_t *handle, Numeric *x, Numeric *
 
 extern "C"
 int
-Block_house(cublasHandle_t *handle, Vector *in, Vector *out) {
-    dim3 dimGrid(1, 1);
-    dim3 dimBlock(1, 1);
-    
-    Block_house_kernel<<<dimGrid, dimBlock>>>(handle, in->data_d, out->data_d, in->nr_elems);
+Block_house(cublasHandle_t *handle, Vector *in, Vector *out) {    
+    Block_house_kernel<<<1, 1>>>(handle, in->data_d, out->data_d, in->nr_elems);
     return 0;
 }

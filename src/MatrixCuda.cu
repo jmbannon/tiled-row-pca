@@ -3,6 +3,7 @@
 #include "error.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <stdio.h>
 
 /**
  * Copies data from host to device.
@@ -55,6 +56,11 @@ Matrix_free_device(Matrix *in)
     return 0;
 }
 
+__global__ void device_init_constant(Numeric *in, Numeric constant)
+{
+	in[threadIdx.x] = constant;
+}
+
 extern "C"
 int
 Matrix_init_constant_device(Matrix *mat,
@@ -65,12 +71,17 @@ Matrix_init_constant_device(Matrix *mat,
 	int res = Matrix_init_device(mat, nr_rows, nr_cols);
     CHECK_ZERO_RETURN(res);
 
-    int size = nr_rows * nr_cols;
-    for (int i = 0; i < size; i++) {
-        mat->data_d[i] = constant;
-    }
-
+    dim3 dimGrid(1, 1);
+    dim3 dimBlock(nr_rows * nr_cols, 1);
+    
+    device_init_constant<<<dimGrid, dimBlock>>>(mat->data_d, constant);
     return 0;
+}
+
+__global__ void device_init_diag(Numeric *in, int nr_rows, Numeric constant)
+{
+	int pos = MAT_POS(threadIdx.x, threadIdx.y, nr_rows);
+	in[pos] = (threadIdx.x != threadIdx.y) ? 0.0 : constant;
 }
 
 extern "C"
@@ -80,14 +91,12 @@ Matrix_init_diag_device(Matrix *mat,
 			            int nr_cols,
 			            Numeric constant)
 {
-	int res = Matrix_init_zero_device(mat, nr_rows, nr_cols);
+	int res = Matrix_init_device(mat, nr_rows, nr_cols);
 	CHECK_ZERO_RETURN(res);
 
-	int min = nr_rows < nr_cols ? nr_rows : nr_cols;
-	for (int i = 0; i < min; i++) {
-		mat->data_d[MAT_POS(i, i, mat->nr_rows)] = constant;
-	}
+    dim3 dimBlock(nr_rows, nr_cols);
 
+	device_init_diag<<<1, dimBlock>>>(mat->data_d, nr_rows, constant);
 	return 0;
 }
 
