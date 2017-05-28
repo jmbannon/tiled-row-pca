@@ -124,6 +124,14 @@ Matrix_init_diag_device(Matrix *mat,
 extern "C"
 #endif
 int
+Matrix_init_seq_mem_device(Matrix *mat,
+			               int nr_rows,
+			               int nr_cols);
+
+#ifdef __cplusplus
+extern "C"
+#endif
+int
 Matrix_init_zero_device(Matrix *mat,
                  		int nr_rows,
                  		int nr_cols);

@@ -101,6 +101,27 @@ Matrix_init_diag_device(Matrix *mat,
 	return 0;
 }
 
+__global__ void device_init_seq_mem(Numeric *in, int nr_rows)
+{
+	int idx = MAT_POS(threadIdx.x, threadIdx.y, nr_rows);
+	in[idx] = idx;
+}
+
+extern "C"
+int
+Matrix_init_seq_mem_device(Matrix *mat,
+			               int nr_rows,
+			               int nr_cols)
+{
+	int res = Matrix_init_device(mat, nr_rows, nr_cols);
+	CHECK_ZERO_RETURN(res);
+
+    dim3 dimBlock(nr_rows, nr_cols);
+
+	device_init_seq_mem<<<1, dimBlock>>>(mat->data_d, nr_rows);
+	return 0;
+}
+
 /**
  * Initializes a matrix with 0s.
  *
