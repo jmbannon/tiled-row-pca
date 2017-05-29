@@ -3,6 +3,7 @@
 #include "error.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <curand_kernel.h>
 #include <stdio.h>
 
 /**
@@ -114,4 +115,31 @@ Matrix_init_zero_device(Matrix *mat,
 		                int nr_cols)
 {
 	return Matrix_init_constant_device(mat, nr_rows, nr_cols, 0.0);
+}
+
+
+
+__global__ void device_init_rand(Numeric *in, int nr_rows, unsigned long seed)
+{
+	curandState state;
+	int idx = MAT_POS(threadIdx.x, threadIdx.y, nr_rows);
+
+	curand_init(seed, idx, 0, &state);
+	in[idx] = curand_uniform(&state);
+}
+
+extern "C"
+int
+Matrix_init_rand_device(Matrix *mat,
+			            int nr_rows,
+			            int nr_cols,
+			            unsigned long seed)
+{
+	int res = Matrix_init_device(mat, nr_rows, nr_cols);
+	CHECK_ZERO_RETURN(res);
+
+    dim3 dimBlock(nr_rows, nr_cols);
+
+	device_init_rand<<<1, dimBlock>>>(mat->data_d, nr_rows, seed);
+	return 0;
 }

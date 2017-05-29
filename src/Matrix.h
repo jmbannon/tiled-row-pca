@@ -128,4 +128,13 @@ Matrix_init_zero_device(Matrix *mat,
                  		int nr_rows,
                  		int nr_cols);
 
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+Matrix_init_rand_device(Matrix *mat,
+			            int nr_rows,
+			            int nr_cols,
+			            unsigned long seed);
+
 #endif
