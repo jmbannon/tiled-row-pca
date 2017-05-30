@@ -117,13 +117,12 @@ __device__ int house_row(cublasHandle_t *handle, Numeric *A, Numeric *v, Numeric
   * @param w Work-space vector.
   * @param store_house True if householder vectors should be stored in lower-triangular portion of output. False otherwise.
   */
-__device__ int house_qr(cublasHandle_t *handle, Numeric *A, Numeric *w, bool store_house, int m, int n)
+__device__ int house_qr(cublasHandle_t *handle, Numeric *A, Numeric *beta, Numeric *w, bool store_house, int m, int n)
 {
   cublasHandle_t handle2;
   int res = cublasCreate(&handle2);
 
   Numeric *v;
-  Numeric beta;
 
   res = cudaMalloc(&v, m * sizeof(Numeric));
   CHECK_SUCCESS_RETURN(res);
@@ -133,7 +132,7 @@ __device__ int house_qr(cublasHandle_t *handle, Numeric *A, Numeric *w, bool sto
     res = house(&handle2, &A[pos], &v[j], m - j);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to compute house");
 
-    res = house_row(&handle2, &A[pos], &v[j], &beta, &w[j], m - j, n - j, m);
+    res = house_row(&handle2, &A[pos], &v[j], &beta[j], &w[j], m - j, n - j, m);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to compute house_row");
 
     // Copies householder vector into lower triangular portion of A
@@ -171,43 +170,58 @@ __device__ int house_qr(cublasHandle_t *handle, Numeric *A, Numeric *w, bool sto
   * @param Y m-by-n matrix where lower-triangular + diag portion holds householder vectors and the upper-triangular portion holds the R matrix from QR.
   * @param T n-by-n output matrix to store T
   */
-__device__ int house_yt(cublasHandle_t *handle, Numeric *Y, Numeric *T, int m, int n)
+__device__ int house_yt(cublasHandle_t *handle, Numeric *Y, Numeric *T, Numeric *beta, int m, int n)
 {
   cublasHandle_t handle2;
   int res = cublasCreate(&handle2);
 
-  Numeric alpha = -2.0;
-  Numeric beta = 0.0;
+  Numeric alpha;
+  Numeric zero = 0.0;
   int v_idx;
   int z_idx;
   int y_idx;
 
-  T[0] = -2.0;
+  printf("beta values\n");
+  for (int i = 0; i < n; i++) {
+    printf("%f ", beta[i]);
+  }
+  printf("\n");
+
+  printf("y_%d = \n", 0);
+    for (int i = 0; i < m; i++) {
+      printf("%f ", Y[i]);
+    }
+    printf("\n");
+
+
+  T[0] = beta[0];
   for (int j = 1; j < n; j++) {
-    y_idx = MAT_POS(j - 1, 0, m);
+    alpha = beta[j];
+
+    y_idx = MAT_POS(j, 0, m);
     v_idx = MAT_POS(j, j, m);
     z_idx = MAT_POS(0, j, n);
 
-    // printf("y_%d = \n", j);
-    // for (int i = 0; i < (m - j); i++) {
-    //   printf("%f ", Y[v_idx + i]);
-    // }
-    // printf("\n");
+    printf("y_%d = \n", j);
+    for (int i = 0; i < (m - j); i++) {
+      printf("%f ", Y[v_idx + i]);
+    }
+    printf("\n");
 
     // Computes -2 * t(Y) * v_j = z' in an optimized way to ignore 0 elements in v_j. Stores it in z-location of T matrix.
     #if FLOAT_NUMERIC
-      res = cublasSgemm(handle2, CUBLAS_OP_T, CUBLAS_OP_N, j, 1, m - j, &alpha, &Y[y_idx], m, &Y[v_idx], m, &beta, &T[z_idx], n);
+      res = cublasSgemm(handle2, CUBLAS_OP_T, CUBLAS_OP_N, j, 1, m - j, &alpha, &Y[y_idx], m, &Y[v_idx], m, &zero, &T[z_idx], n);
     #else
-      res = cublasDgemm(handle2, CUBLAS_OP_T, CUBLAS_OP_N, j, 1, m - j, &alpha, &Y[y_idx], m, &Y[v_idx], m, &beta, &T[z_idx], n);
+      res = cublasDgemm(handle2, CUBLAS_OP_T, CUBLAS_OP_N, j, 1, m - j, &alpha, &Y[y_idx], m, &Y[v_idx], m, &zero, &T[z_idx], n);
     #endif
 
-    // printf("PRE we are at j=%d\n", j);
-    // for (int i = 0; i < n; i++) {
-    //   for (int j = 0; j < n; j++) {
-    //     printf("%f ", T[MAT_POS(i, j, n)]);
-    //   }
-    //   printf("\n");
-    // }
+    printf("PRE we are at j=%d\n", j);
+    for (int i = 0; i < n; i++) {
+      for (int j = 0; j < n; j++) {
+        printf("%f ", T[MAT_POS(i, j, n)]);
+      }
+      printf("\n");
+    }
 
     // Computes T * z' using a triangular matrix-vector multiplication routine.
     #if FLOAT_NUMERIC
@@ -216,15 +230,15 @@ __device__ int house_yt(cublasHandle_t *handle, Numeric *Y, Numeric *T, int m, i
       res = cublasDtrmv(handle2, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, j, T, n, &T[z_idx], 1);
     #endif
 
-    // printf("post we are at j=%d\n", j);
-    // for (int i = 0; i < n; i++) {
-    //   for (int j = 0; j < n; j++) {
-    //     printf("%f ", T[MAT_POS(i, j, n)]);
-    //   }
-    //   printf("\n");
-    // }
+    printf("post we are at j=%d\n", j);
+    for (int i = 0; i < n; i++) {
+      for (int j = 0; j < n; j++) {
+        printf("%f ", T[MAT_POS(i, j, n)]);
+      }
+      printf("\n");
+    }
 
-    T[MAT_POS(j, j, n)] = -2.0;
+    T[MAT_POS(j, j, n)] = beta[j];
   }
   return 0;
 }
@@ -237,10 +251,15 @@ __device__ int dgeqt2(cublasHandle_t *handle, Numeric *A, Numeric *T, int m, int
   // Temporary work matrix
   Numeric *w;
 
+  Numeric *beta;
+
   res = cudaMalloc(&w, m * sizeof(Numeric));
   CHECK_SUCCESS_RETURN(res);
 
-  res = house_qr(&handle2, A, w, true, m, n);
+  res = cudaMalloc(&beta, n * sizeof(Numeric));
+  CHECK_SUCCESS_RETURN(res);
+
+  res = house_qr(&handle2, A, beta, w, true, m, n);
 
   // Restore householder vectors for YT Generation. Store diag in work vector.
   int diag_idx;
@@ -251,7 +270,7 @@ __device__ int dgeqt2(cublasHandle_t *handle, Numeric *A, Numeric *T, int m, int
 
   }
 
-  res = house_yt(&handle2, A, T, m, n);
+  res = house_yt(&handle2, A, T, beta, m, n);
 
   for (int i = 0; i < n; i++) {
     diag_idx = MAT_POS(i, i, m);
@@ -276,7 +295,7 @@ Block_house(cublasHandle_t *handle, Vector *in, Vector *out) {
 
 
 __global__ void Block_house_qr_kernel(cublasHandle_t *handle, Numeric *A, int m, int n) {
-    house_qr(handle, A, NULL, true, m, n);
+    house_qr(handle, A, NULL, NULL, true, m, n);
 }
 
 extern "C"

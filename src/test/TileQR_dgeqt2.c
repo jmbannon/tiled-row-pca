@@ -42,16 +42,31 @@ int Test_TileQR_dgeqt2()
     res = Matrix_init_zero_device(&T, n, n);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to init identity matrix on device");
 
+    res = Matrix_init(&T, n, n);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to initialize matrix on host");
+
     res = Matrix_init_diag_device(&I, n, n, 1.0);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to init identity matrix on device");
+
+    res = Matrix_copy_device_to_host(&A_orig);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to copy constant matrix from device to host");
+
+    printf("Before QR:\n");
+    Matrix_print(&A_orig);
+
+    Block_dgeqt2(&handle, &A, &T);
 
     res = Matrix_copy_device_to_host(&A);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to copy constant matrix from device to host");
 
-    printf("Before QR:\n");
+    printf("R with Householder vectors:\n");
     Matrix_print(&A);
 
-    Block_dgeqt2(&handle, &A, &T);
+    res = Matrix_copy_device_to_host(&T);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to copy constant matrix from device to host");
+
+    printf("T matrix:\n");
+    Matrix_print(&T);
 
     // Form Q using householder vectors and T
     //
@@ -89,9 +104,6 @@ int Test_TileQR_dgeqt2()
         res = cublasDtrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, n, n, &alpha, A.data_d, n, T.data_d, n, T.data_d, n);
     #endif
     CHECK_CUBLAS_RETURN(res, "Failed to compute T = QR");
-
-    res = Matrix_copy_device_to_host(&A_orig);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to copy constant matrix from device to host");
 
     res = Matrix_copy_device_to_host(&T);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to copy constant matrix from device to host");
