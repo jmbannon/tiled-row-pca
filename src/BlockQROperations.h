@@ -30,6 +30,6 @@ Block_house_qr(cublasHandle_t *handle, Matrix *A);
 extern "C"
 #endif
 int
-Block_dgeqt2(cublasHandle_t *handle, Matrix *A, Matrix *T, int m, int n);
+Block_dgeqt2(cublasHandle_t *handle, Matrix *A, Matrix *T);
 
 #endif

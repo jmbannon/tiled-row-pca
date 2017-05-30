@@ -183,23 +183,45 @@ __device__ int house_yt(cublasHandle_t *handle, Numeric *Y, Numeric *T, int m, i
 
   T[0] = -2.0;
   for (int j = 1; j < n; j++) {
-    y_idx = MAT_POS(j - 1, j, m);
-    v_idx = MAT_POS(j, j, n);
+    y_idx = MAT_POS(j - 1, 0, m);
+    v_idx = MAT_POS(j, j, m);
     z_idx = MAT_POS(0, j, n);
+
+    // printf("y_%d = \n", j);
+    // for (int i = 0; i < (m - j); i++) {
+    //   printf("%f ", Y[v_idx + i]);
+    // }
+    // printf("\n");
 
     // Computes -2 * t(Y) * v_j = z' in an optimized way to ignore 0 elements in v_j. Stores it in z-location of T matrix.
     #if FLOAT_NUMERIC
-      res = cublasSgemm(handle2, CUBLAS_OP_T, CUBLAS_OP_N, j, 1, m - j, &alpha, &Y[y_idx], m, &Y[v_idx], m, &beta, &T[z_idx], m);
+      res = cublasSgemm(handle2, CUBLAS_OP_T, CUBLAS_OP_N, j, 1, m - j, &alpha, &Y[y_idx], m, &Y[v_idx], m, &beta, &T[z_idx], n);
     #else
-      res = cublasDgemm(handle2, CUBLAS_OP_T, CUBLAS_OP_N, j, 1, m - j, &alpha, &Y[y_idx], m, &Y[v_idx], m, &beta, &T[z_idx], m);
+      res = cublasDgemm(handle2, CUBLAS_OP_T, CUBLAS_OP_N, j, 1, m - j, &alpha, &Y[y_idx], m, &Y[v_idx], m, &beta, &T[z_idx], n);
     #endif
+
+    // printf("PRE we are at j=%d\n", j);
+    // for (int i = 0; i < n; i++) {
+    //   for (int j = 0; j < n; j++) {
+    //     printf("%f ", T[MAT_POS(i, j, n)]);
+    //   }
+    //   printf("\n");
+    // }
 
     // Computes T * z' using a triangular matrix-vector multiplication routine.
     #if FLOAT_NUMERIC
-      res = cublasStrmv(handle2, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_UNIT, j, T, n, &T[z_idx], 1);
+      res = cublasStrmv(handle2, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, j, T, n, &T[z_idx], 1);
     #else
-      res = cublasDtrmv(handle2, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_UNIT, j, T, n, &T[z_idx], 1);
+      res = cublasDtrmv(handle2, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, j, T, n, &T[z_idx], 1);
     #endif
+
+    // printf("post we are at j=%d\n", j);
+    // for (int i = 0; i < n; i++) {
+    //   for (int j = 0; j < n; j++) {
+    //     printf("%f ", T[MAT_POS(i, j, n)]);
+    //   }
+    //   printf("\n");
+    // }
 
     T[MAT_POS(j, j, n)] = -2.0;
   }
@@ -269,7 +291,7 @@ __global__ void Block_dgeqt2_kernel(cublasHandle_t *handle, Numeric *A, Numeric 
 
 extern "C"
 int
-Block_dgeqt2(cublasHandle_t *handle, Matrix *A, Matrix *T, int m, int n) {    
+Block_dgeqt2(cublasHandle_t *handle, Matrix *A, Matrix *T) {    
     Block_dgeqt2_kernel<<<1, 1>>>(handle, A->data_d, T->data_d, A->nr_rows, A->nr_cols);
     return 0;
 }
