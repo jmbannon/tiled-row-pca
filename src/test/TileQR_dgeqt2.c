@@ -120,15 +120,12 @@
 // }
 
 
-int Test_TileQR_dgeqt2()
+int Test_TileQR_dgeqt2_internal(int m, int n)
 {
     int res;
 
-    int m = 5;
-    int n = 5;
-
     /////////////////////////////////////////////////
-
+    printf("begin\n");
 
     Matrix A, T, Q, A_orig, I;
     cublasHandle_t handle;
@@ -143,6 +140,9 @@ int Test_TileQR_dgeqt2()
     CHECK_ZERO_ERROR_RETURN(res, "Failed to init identity matrix on device");
 
     res = Matrix_init_rand_device(&A_orig, m, n, 253L);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to init identity matrix on device");
+
+    res = Matrix_init(&A_orig, m, n);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to init identity matrix on device");
 
     res = Matrix_init(&T, n, n);
@@ -233,8 +233,17 @@ int Test_TileQR_dgeqt2()
     printf("QR:\n");
     Matrix_print(&Q);
 
-    bool equals = false;
-    printf("TODO: Test by assembling Q matrix and multiply QR, compare with A\n");
+    bool equals = true;
+    for (int i = 0; i < (m * n); i++) {
+        equals = DoubleCompare(A_orig.data[i], Q.data[i]);
+        if (!equals) {
+            break;
+        }
+    }
 
     return equals ? 0 : 1;
+}
+
+int Test_TileQR_dgeqt2() {
+    return Test_TileQR_dgeqt2_internal(5, 5);
 }
