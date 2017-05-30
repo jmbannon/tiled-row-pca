@@ -79,9 +79,9 @@ __device__ int house_row(cublasHandle_t *handle, Numeric *A, Numeric *v, Numeric
 
     // Computes beta
     #if FLOAT_NUMERIC
-      res = cublasSnrm2(handle2, n, v, 1, beta);
+      res = cublasSnrm2(handle2, m, v, 1, beta);
     #else
-      res = cublasDnrm2(handle2, n, v, 1, beta);
+      res = cublasDnrm2(handle2, m, v, 1, beta);
     #endif
     CHECK_CUBLAS_RETURN(res, "Failed to compute beta");
 
@@ -109,7 +109,7 @@ __device__ int house_row(cublasHandle_t *handle, Numeric *A, Numeric *v, Numeric
 }
 
 /**
-  * Produces an upper triangular matrix R, unit lower triangular matrix V that contains b Householder reflectors.
+  * Produces an upper triangular matrix R, unit lower triangular matrix V that contains n Householder reflectors.
   * R and V are written on the memory area used for A.
   *
   * @param A upper triangular matrix R. Lower triangular contains partial householder reflectors:
@@ -134,6 +134,19 @@ __device__ int house_qr(cublasHandle_t *handle, Numeric *A, Numeric *beta, Numer
 
     res = house_row(&handle2, &A[pos], &v[j], &beta[j], &w[j], m - j, n - j, m);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to compute house_row");
+
+    printf("\nhouseholder vector for j=%d\n", j);
+    for (int i = j; i < m; i++) {
+      printf("%f ", v[i]);
+    }
+    printf("\ncurrent matrix:\n");
+    for (int a = 0; a < m; a++) {
+      for (int b = 0; b < n; b++) {
+        printf("%f ", A[MAT_POS(a, b, m)]);
+      }
+      printf("\n");
+    }
+    printf("\n");
 
     // Copies householder vector into lower triangular portion of A
     if (store_house && j < m) {

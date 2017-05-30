@@ -247,3 +247,8 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
 int Test_TileQR_dgeqt2() {
     return Test_TileQR_dgeqt2_internal(5, 5);
 }
+
+int Test_TileQR_dgeqt2_rect() {
+    printf("\n\n");
+    return Test_TileQR_dgeqt2_internal(10, 5);
+}
