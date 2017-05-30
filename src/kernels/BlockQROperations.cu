@@ -284,36 +284,41 @@ __device__ int dgeqt2(cublasHandle_t *handle, Numeric *A, Numeric *T, int m, int
 __device__ int cublasDgemm_hmn(cublasHandle_t handle,
                                cublasDiagType_t diag,
                                int m, int n, int k,
-                               const Numeric *alpha,
+                               const Numeric alpha,
                                const Numeric *A, int lda,
                                const Numeric *B, int ldb,
                                Numeric *C, int ldc)
 {
+
   int res;
   Numeric zero = 0.0;
   #if FLOAT_NUMERIC
-    res = cublasStrmm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, diag, k, k, alpha, A, m, B, k, C, m);
+    res = cublasStrmm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, diag, k, n, &alpha, A, m, B, k, C, m);
   #else
-    res = cublasDtrmm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, diag, k, k, alpha, A, m, B, k, C, m);
+    res = cublasDtrmm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, diag, k, n, &alpha, A, m, B, k, C, m);
   #endif 
   CHECK_CUBLAS_RETURN(res, "Triangle portion of Hessianberg matrix multiply failed");
 
   if (m != k) {
+    printf("FORBIDDEN ZONE\n");
     #if FLOAT_NUMERIC
-      res = cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m - k, n, k, alpha, &A[m - k], m, B, k, &zero, &C[m - k], m);
+      res = cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m - k, n, k, &alpha, &A[m - k], m, B, k, &zero, &C[m - k], m);
     #else
-      res = cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m - k, n, k, alpha, &A[m - k], m, B, k, &zero, &C[m - k], m);
+      res = cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m - k, n, k, &alpha, &A[m - k], m, B, k, &zero, &C[m - k], m);
     #endif
     CHECK_CUBLAS_RETURN(res, "Rectangle portion of Hessianberg matrix multiply failed");
   }
   return 0;
 }
 
+
+//  n, m, n
+
 // Matrix-hessianberg matrix transpose multiply
 __device__ int cublasDgemm_mht(cublasHandle_t handle,
                                cublasDiagType_t diag,
                                int m, int n, int k,
-                               const Numeric *alpha,
+                               const Numeric alpha,
                                const Numeric *A, int lda,
                                const Numeric *B, int ldb,
                                Numeric *C, int ldc)
@@ -321,21 +326,23 @@ __device__ int cublasDgemm_mht(cublasHandle_t handle,
   int res;
   Numeric zero = 0.0;
   #if FLOAT_NUMERIC
-    res = cublasStrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_T, diag, k, k, alpha, A, m, B, k, C, m);
+    res = cublasStrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, diag, m, k, &alpha, B, m, A, m, C, m);
   #else
-    res = cublasDtrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_T, diag, k, k, alpha, A, m, B, k, C, m);
+    res = cublasDtrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, diag, m, k, &alpha, B, m, A, m, C, m);
   #endif 
   CHECK_CUBLAS_RETURN(res, "Triangle portion of Hessianberg matrix multiply failed");
 
   if (n != k) {
+    printf("FORBIDDEN ZONE\n");
     int C_rectangle_idx = MAT_POS(0, k, m);
     #if FLOAT_NUMERIC
-      res = cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_T, m, n, k, alpha, A, m, &B[k], n, &zero, &C[C_rectangle_idx], m);
+      res = cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_T, m, n, k, &alpha, A, m, &B[k], n, &zero, &C[C_rectangle_idx], m);
     #else
-      res = cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_T, m, n, k, alpha, A, m, &B[k], n, &zero, &C[C_rectangle_idx], m);
+      res = cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_T, m, n, k, &alpha, A, m, &B[k], n, &zero, &C[C_rectangle_idx], m);
     #endif
     CHECK_CUBLAS_RETURN(res, "Rectangle portion of Hessianberg matrix multiply failed");
   }
+
   return 0;
 }
 
@@ -373,5 +380,61 @@ extern "C"
 int
 Block_dgeqt2(cublasHandle_t *handle, Matrix *A, Matrix *T) {    
     Block_dgeqt2_kernel<<<1, 1>>>(handle, A->data_d, T->data_d, A->nr_rows, A->nr_cols);
+    return 0;
+}
+
+
+
+
+__global__ void TileQR_cublasDgemm_hmn_kernel(cublasDiagType_t diag,
+                                              int m, int n, int k,
+                                              const Numeric alpha,
+                                              const Numeric *A, int lda,
+                                              const Numeric *B, int ldb,
+                                              Numeric *C, int ldc)
+{
+    cublasHandle_t handle;
+    int res = cublasCreate(&handle);
+
+    cublasDgemm_hmn(handle, diag, m, n, k, alpha, A, lda, B, ldb, C, ldc);
+}
+
+extern "C"
+int
+TileQR_cublasDgemm_hmn(cublasDiagType_t diag,
+                       int m, int n, int k,
+                       const Numeric alpha,
+                       const Numeric *A, int lda,
+                       const Numeric *B, int ldb,
+                       Numeric *C, int ldc)
+{    
+    TileQR_cublasDgemm_hmn_kernel<<<1, 1>>>(diag, m, n, k, alpha, A, lda, B, ldb, C, ldc);
+    return 0;
+}
+
+
+__global__ void TileQR_cublasDgemm_mht_kernel(cublasDiagType_t diag,
+                                              int m, int n, int k,
+                                              const Numeric alpha,
+                                              const Numeric *A, int lda,
+                                              const Numeric *B, int ldb,
+                                              Numeric *C, int ldc)
+{
+    cublasHandle_t handle;
+    int res = cublasCreate(&handle);
+
+    cublasDgemm_mht(handle, diag, m, n, k, alpha, A, lda, B, ldb, C, ldc);
+}
+
+extern "C"
+int
+TileQR_cublasDgemm_mht(cublasDiagType_t diag,
+                       int m, int n, int k,
+                       const Numeric alpha,
+                       const Numeric *A, int lda,
+                       const Numeric *B, int ldb,
+                       Numeric *C, int ldc)
+{    
+    TileQR_cublasDgemm_mht_kernel<<<1, 1>>>(diag, m, n, k, alpha, A, lda, B, ldb, C, ldc);
     return 0;
 }

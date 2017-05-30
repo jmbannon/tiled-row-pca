@@ -130,7 +130,7 @@ int Test_TileQR_dgeqt2()
     /////////////////////////////////////////////////
 
 
-    Matrix A, T, A_orig, I;
+    Matrix A, T, Q, A_orig, I;
     cublasHandle_t handle;
 
     res = cublasCreate(&handle);
@@ -151,7 +151,13 @@ int Test_TileQR_dgeqt2()
     res = Matrix_init_zero_device(&T, n, n);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to init identity matrix on device");
 
-    res = Matrix_init_diag_device(&I, m, m, 1.0);
+    res = Matrix_init_zero_device(&Q, m, m);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to init identity matrix on device");
+
+    res = Matrix_init(&Q, m, m);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to initialize matrix on host");
+
+    res = Matrix_init_diag_device(&I, m, n, 1.0);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to init identity matrix on device");
 
     res = Matrix_copy_device_to_host(&A_orig);
@@ -180,45 +186,52 @@ int Test_TileQR_dgeqt2()
 
     // Calculates T = T * t(Y)
     Numeric alpha = 1.0;
-    #if FLOAT_NUMERIC
-        res = cublasStrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, CUBLAS_DIAG_UNIT, n, n, &alpha, A.data_d, m, T.data_d, n, T.data_d, n);
-    #else
-        res = cublasDtrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, CUBLAS_DIAG_UNIT, n, n, &alpha, A.data_d, m, T.data_d, n, T.data_d, n);
-    #endif
+    res = TileQR_cublasDgemm_mht(CUBLAS_DIAG_UNIT, n, m, n, alpha, T.data_d, n, A.data_d, m, Q.data_d, m);
     CHECK_CUBLAS_RETURN(res, "Failed to compute T = T * t(Y)");
 
+
+
+    res = Matrix_copy_device_to_host(&Q);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to copy Q matrix from device to host");
+
+    printf("T * t(Y)\n");
+    Matrix_print(&Q);
+
+
     // Calculates T = Y * T
-    #if FLOAT_NUMERIC
-        res = cublasStrmm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_UNIT, n, n, &alpha, A.data_d, m, T.data_d, n, T.data_d, n);
-    #else
-        res = cublasDtrmm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_UNIT, n, n, &alpha, A.data_d, m, T.data_d, n, T.data_d, n);
-    #endif
+    TileQR_cublasDgemm_hmn(CUBLAS_DIAG_UNIT, m, n, n, alpha, A.data_d, m, Q.data_d, n, Q.data_d, m);
     CHECK_CUBLAS_RETURN(res, "Failed to compute T = Y * T");
+
+    res = Matrix_copy_device_to_host(&Q);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to copy Q matrix from device to host");
+
+    printf("Y * T\n");
+    Matrix_print(&Q);
 
     // Calculates T = Q = T + I
     #if FLOAT_NUMERIC
-        res = cublasSgeam(handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, &alpha, T.data_d, n, &alpha, I.data_d, n, T.data_d, n);
+        res = cublasSgeam(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, m, &alpha, Q.data_d, m, &alpha, I.data_d, m, Q.data_d, m);
     #else
-        res = cublasDgeam(handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, &alpha, T.data_d, n, &alpha, I.data_d, n, T.data_d, n);
+        res = cublasDgeam(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, m, &alpha, Q.data_d, m, &alpha, I.data_d, m, Q.data_d, m);
     #endif
     CHECK_CUBLAS_RETURN(res, "Failed to compute T = Q = T + I");
 
     // Calculates T = QR
     #if FLOAT_NUMERIC
-        res = cublasStrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, n, n, &alpha, A.data_d, n, T.data_d, n, T.data_d, n);
+        res = cublasStrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, n, &alpha, A.data_d, n, Q.data_d, m, Q.data_d, m);
     #else
-        res = cublasDtrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, n, n, &alpha, A.data_d, n, T.data_d, n, T.data_d, n);
+        res = cublasDtrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, n, &alpha, A.data_d, n, Q.data_d, m, Q.data_d, m);
     #endif
     CHECK_CUBLAS_RETURN(res, "Failed to compute T = QR");
 
-    res = Matrix_copy_device_to_host(&T);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to copy constant matrix from device to host");
+    res = Matrix_copy_device_to_host(&Q);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to copy Q matrix from device to host");
 
     printf("After QR:\n");
     printf("A:\n");
     Matrix_print(&A_orig);
     printf("QR:\n");
-    Matrix_print(&T);
+    Matrix_print(&Q);
 
     bool equals = false;
     printf("TODO: Test by assembling Q matrix and multiply QR, compare with A\n");
