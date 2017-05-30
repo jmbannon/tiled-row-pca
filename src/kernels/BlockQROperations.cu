@@ -111,18 +111,19 @@ __device__ int house_row(cublasHandle_t *handle, Numeric *A, Numeric *v, Numeric
 /**
   * Produces an upper triangular matrix R, unit lower triangular matrix V that contains b Householder reflectors.
   * R and V are written on the memory area used for A.
+  *
+  * @param A upper triangular matrix R. Lower triangular contains partial householder reflectors:
+  *        all diagonal elements should be 1 to represent full householder reflector.
+  * @param w Work-space vector.
+  * @param store_house True if householder vectors should be stored in lower-triangular portion of output. False otherwise.
   */
-__device__ int house_qr(cublasHandle_t *handle, Numeric *A, bool store_house, int m, int n)
+__device__ int house_qr(cublasHandle_t *handle, Numeric *A, Numeric *w, bool store_house, int m, int n)
 {
   cublasHandle_t handle2;
   int res = cublasCreate(&handle2);
 
-  Numeric *w;
   Numeric *v;
   Numeric beta;
-
-  res = cudaMalloc(&w, n * sizeof(Numeric));
-  CHECK_SUCCESS_RETURN(res);
 
   res = cudaMalloc(&v, m * sizeof(Numeric));
   CHECK_SUCCESS_RETURN(res);
@@ -239,7 +240,7 @@ __device__ int dgeqt2(cublasHandle_t *handle, Numeric *A, Numeric *T, int m, int
   res = cudaMalloc(&w, m * sizeof(Numeric));
   CHECK_SUCCESS_RETURN(res);
 
-  res = house_qr(&handle2, A, true, m, n);
+  res = house_qr(&handle2, A, w, true, m, n);
 
   // Restore householder vectors for YT Generation. Store diag in work vector.
   int diag_idx;
@@ -247,6 +248,7 @@ __device__ int dgeqt2(cublasHandle_t *handle, Numeric *A, Numeric *T, int m, int
     diag_idx = MAT_POS(i, i, m);
     w[i] = A[diag_idx];
     A[diag_idx] = 1.0;
+
   }
 
   res = house_yt(&handle2, A, T, m, n);
@@ -274,7 +276,7 @@ Block_house(cublasHandle_t *handle, Vector *in, Vector *out) {
 
 
 __global__ void Block_house_qr_kernel(cublasHandle_t *handle, Numeric *A, int m, int n) {
-    house_qr(handle, A, true, m, n);
+    house_qr(handle, A, NULL, true, m, n);
 }
 
 extern "C"

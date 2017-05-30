@@ -27,7 +27,6 @@ void addAllTests() {
 	addTest("Test_BlockMatrixVector_sub", Test_BlockMatrixVector_sub);
 	addTest("Test_Matrix_copy_device_to_host", Test_Matrix_copy_device_to_host);
 	addTest("Test_BlockQROperationHouse", Test_BlockQROperationHouse);
-	addTest("Test_BlockQROperationHouseQR", Test_BlockQROperationHouseQR);
 	addTest("Test_TileQR_dgeqt2", Test_TileQR_dgeqt2);
 }
 
