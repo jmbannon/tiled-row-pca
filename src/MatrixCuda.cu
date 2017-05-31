@@ -59,7 +59,7 @@ Matrix_free_device(Matrix *in)
 
 __global__ void device_init_constant(Numeric *in, Numeric constant)
 {
-	in[threadIdx.x] = constant;
+	in[blockIdx.x] = constant;
 }
 
 extern "C"
@@ -71,17 +71,14 @@ Matrix_init_constant_device(Matrix *mat,
 {
 	int res = Matrix_init_device(mat, nr_rows, nr_cols);
     CHECK_ZERO_RETURN(res);
-
-    dim3 dimGrid(1, 1);
-    dim3 dimBlock(nr_rows * nr_cols, 1);
     
-    device_init_constant<<<dimGrid, dimBlock>>>(mat->data_d, constant);
+    device_init_constant<<<nr_rows * nr_cols, 1>>>(mat->data_d, constant);
     return 0;
 }
 
 __global__ void device_add_diag(Numeric *in, int nr_rows, Numeric constant)
 {
-	int pos = MAT_POS(threadIdx.x, threadIdx.x, nr_rows);
+	int pos = MAT_POS(blockIdx.x, blockIdx.x, nr_rows);
 	in[pos] += constant;
 }
 
@@ -90,7 +87,7 @@ int
 Matrix_add_diag_device(Matrix *mat,
 			           Numeric constant)
 {
-	device_add_diag<<<1, mat->nr_cols>>>(mat->data_d, mat->nr_rows, constant);
+	device_add_diag<<<mat->nr_cols, 1>>>(mat->data_d, mat->nr_rows, constant);
 	return 0;
 }
 
@@ -110,7 +107,7 @@ Matrix_init_diag_device(Matrix *mat,
 
 __global__ void device_init_seq_mem(Numeric *in, int nr_rows)
 {
-	int idx = MAT_POS(threadIdx.x, threadIdx.y, nr_rows);
+	int idx = MAT_POS(blockIdx.x, blockIdx.y, nr_rows);
 	in[idx] = idx;
 }
 
@@ -123,9 +120,9 @@ Matrix_init_seq_mem_device(Matrix *mat,
 	int res = Matrix_init_device(mat, nr_rows, nr_cols);
 	CHECK_ZERO_RETURN(res);
 
-    dim3 dimBlock(nr_rows, nr_cols);
+    dim3 dimGrid(nr_rows, nr_cols);
 
-	device_init_seq_mem<<<1, dimBlock>>>(mat->data_d, nr_rows);
+	device_init_seq_mem<<<dimGrid, 1>>>(mat->data_d, nr_rows);
 	return 0;
 }
 
@@ -150,7 +147,7 @@ Matrix_init_zero_device(Matrix *mat,
 __global__ void device_init_rand(Numeric *in, int nr_rows, unsigned long seed)
 {
 	curandState state;
-	int idx = MAT_POS(threadIdx.x, threadIdx.y, nr_rows);
+	int idx = MAT_POS(blockIdx.x, blockIdx.y, nr_rows);
 
 	curand_init(seed, idx, 0, &state);
 	in[idx] = curand_uniform(&state);
@@ -166,8 +163,8 @@ Matrix_init_rand_device(Matrix *mat,
 	int res = Matrix_init_device(mat, nr_rows, nr_cols);
 	CHECK_ZERO_RETURN(res);
 
-    dim3 dimBlock(nr_rows, nr_cols);
+    dim3 dimGrid(nr_rows, nr_cols);
 
-	device_init_rand<<<1, dimBlock>>>(mat->data_d, nr_rows, seed);
+	device_init_rand<<<dimGrid, 1>>>(mat->data_d, nr_rows, seed);
 	return 0;
 }
