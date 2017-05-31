@@ -14,46 +14,41 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
 {
     int res;
 
-    Matrix A, T, Q, A_orig, Q_;
+    Matrix A, T, Q, Q_;
     cublasHandle_t handle;
 
     /////////////////////////////////////////////////
 
     res = cublasCreate(&handle);
-    CHECK_ERROR_RETURN(res != CUBLAS_STATUS_SUCCESS, "Failed to create cublas handle", 1);
+    CHECK_CUBLAS_RETURN(res, "Failed to create cublas handle");
+
+    // Initialize random matrix A in device
+    res = Matrix_init_rand_device(&A, m, n, 253L);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to init identity matrix on device");
 
     res = Matrix_init(&A, m, n);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to initialize matrix on host");
 
-    res = Matrix_init_rand_device(&A, m, n, 253L);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to init identity matrix on device");
-
-    res = Matrix_init_rand_device(&A_orig, m, n, 253L);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to init identity matrix on device");
-
-    res = Matrix_init(&A_orig, m, n);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to init identity matrix on device");
-
-    res = Matrix_copy_device_to_host(&A_orig);
+    // Store original matrix A in host mem, manipulate in-place in device mem
+    res = Matrix_copy_device_to_host(&A);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to copy constant matrix from device to host");
 
-    res = Matrix_init(&T, n, n);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to initialize matrix on host");
-
+    // Output matrix T from dgeqt2
     res = Matrix_init_zero_device(&T, n, n);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to init identity matrix on device");
 
+    // m-by-m matrix Q, where QR = A
     res = Matrix_init_zero_device(&Q, m, m);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to init identity matrix on device");
 
-    res = Matrix_init(&Q, m, m);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to initialize matrix on host");
-
+    // m-by-n work matrix Q' used to calculate Q and stores output from QR (should equal A)
     res = Matrix_init(&Q_, m, n);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to initialize matrix on host");
 
     res = Matrix_init_device(&Q_, m, n);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to init identity matrix on device");
+
+    /////////////////////////////////////////////////
 
     res = Block_dgeqt2(&handle, &A, &T);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to compute TileQR helper function dgeqt2");
@@ -89,12 +84,13 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
     #endif
     CHECK_CUBLAS_RETURN(res, "Failed to compute T = QR");
 
+    // Copy Q' to host, compare with original A stored in host memory
     res = Matrix_copy_device_to_host(&Q_);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to copy Q matrix from device to host");
 
     bool equals = true;
     for (int i = 0; i < (m * n); i++) {
-        equals = DoubleCompare(A_orig.data[i], Q_.data[i]);
+        equals = DoubleCompare(A.data[i], Q_.data[i]);
         if (!equals) {
             break;
         }
