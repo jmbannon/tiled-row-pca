@@ -14,7 +14,7 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
 {
     int res;
 
-    Matrix A, T, Q, A_orig, I;
+    Matrix A, T, Q, A_orig, Q_;
     cublasHandle_t handle;
 
     /////////////////////////////////////////////////
@@ -49,10 +49,10 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
     res = Matrix_init(&Q, m, m);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to initialize matrix on host");
 
-    res = Matrix_init(&I, m, n);
+    res = Matrix_init(&Q_, m, n);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to initialize matrix on host");
 
-    res = Matrix_init_diag_device(&I, m, n, 1.0);
+    res = Matrix_init_device(&Q_, m, n);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to init identity matrix on device");
 
     res = Block_dgeqt2(&handle, &A, &T);
@@ -72,11 +72,11 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
     Numeric alpha = 1.0;
 
     // Calculates T = Y * T
-    TileQR_cublasDgemm_hmn(CUBLAS_DIAG_UNIT, m, n, n, alpha, A.data_d, m, T.data_d, n, I.data_d, m);
+    TileQR_cublasDgemm_hmn(CUBLAS_DIAG_UNIT, m, n, n, alpha, A.data_d, m, T.data_d, n, Q_.data_d, m);
     CHECK_CUBLAS_RETURN(res, "Failed to compute T = Y * T");
 
     // Calculates T = T * t(Y)
-    res = TileQR_cublasDgemm_mht(CUBLAS_DIAG_UNIT, m, m, n, alpha, I.data_d, m, A.data_d, m, Q.data_d, m);
+    res = TileQR_cublasDgemm_mht(CUBLAS_DIAG_UNIT, m, m, n, alpha, Q_.data_d, m, A.data_d, m, Q.data_d, m);
     CHECK_CUBLAS_RETURN(res, "Failed to compute T = T * t(Y)");
 
     // Calculates T = Q = T + I
@@ -85,18 +85,18 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
 
     // Calculates T = QR
     #if FLOAT_NUMERIC
-        res = cublasStrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, n, &alpha, A.data_d, m, Q.data_d, m, I.data_d, m);
+        res = cublasStrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, n, &alpha, A.data_d, m, Q.data_d, m, Q_.data_d, m);
     #else
-        res = cublasDtrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, n, &alpha, A.data_d, m, Q.data_d, m, I.data_d, m);
+        res = cublasDtrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, n, &alpha, A.data_d, m, Q.data_d, m, Q_.data_d, m);
     #endif
     CHECK_CUBLAS_RETURN(res, "Failed to compute T = QR");
 
-    res = Matrix_copy_device_to_host(&I);
+    res = Matrix_copy_device_to_host(&Q_);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to copy Q matrix from device to host");
 
     bool equals = true;
     for (int i = 0; i < (m * n); i++) {
-        equals = DoubleCompare(A_orig.data[i], I.data[i]);
+        equals = DoubleCompare(A_orig.data[i], Q_.data[i]);
         if (!equals) {
             break;
         }
