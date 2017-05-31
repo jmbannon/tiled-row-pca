@@ -64,12 +64,6 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
     res = Matrix_copy_device_to_host(&T);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to copy constant matrix from device to host");
 
-
-    Matrix_print(&A);
-    printf("\n");
-    Matrix_print(&T);
-    printf("\n");
-
     // Form Q using householder vectors and T
     //
     // Q = I + (Y * T * t(Y))
@@ -81,21 +75,9 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
     TileQR_cublasDgemm_hmn(CUBLAS_DIAG_UNIT, m, n, n, alpha, A.data_d, m, T.data_d, n, I.data_d, m);
     CHECK_CUBLAS_RETURN(res, "Failed to compute T = Y * T");
 
-
-    res = Matrix_copy_device_to_host(&I);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to copy constant matrix from device to host");
-    Matrix_print(&I);
-    printf("\n");
-
     // Calculates T = T * t(Y)
     res = TileQR_cublasDgemm_mht(CUBLAS_DIAG_UNIT, m, m, n, alpha, I.data_d, m, A.data_d, m, Q.data_d, m);
     CHECK_CUBLAS_RETURN(res, "Failed to compute T = T * t(Y)");
-
-    res = Matrix_copy_device_to_host(&Q);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to copy constant matrix from device to host");
-    Matrix_print(&Q);
-    printf("\n");
-
 
     // Calculates T = Q = T + I
     res = Matrix_add_diag_device(&Q, 1.0);
