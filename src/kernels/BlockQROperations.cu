@@ -135,19 +135,6 @@ __device__ int house_qr(cublasHandle_t *handle, Numeric *A, Numeric *beta, Numer
     res = house_row(&handle2, &A[pos], &v[j], &beta[j], &w[j], m - j, n - j, m);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to compute house_row");
 
-    printf("\nhouseholder vector for j=%d\n", j);
-    for (int i = j; i < m; i++) {
-      printf("%f ", v[i]);
-    }
-    printf("\ncurrent matrix:\n");
-    for (int a = 0; a < m; a++) {
-      for (int b = 0; b < n; b++) {
-        printf("%f ", A[MAT_POS(a, b, m)]);
-      }
-      printf("\n");
-    }
-    printf("\n");
-
     // Copies householder vector into lower triangular portion of A
     if (store_house && j < m) {
       #if FLOAT_NUMERIC
@@ -194,19 +181,6 @@ __device__ int house_yt(cublasHandle_t *handle, Numeric *Y, Numeric *T, Numeric 
   int z_idx;
   int y_idx;
 
-  printf("beta values\n");
-  for (int i = 0; i < n; i++) {
-    printf("%f ", beta[i]);
-  }
-  printf("\n");
-
-  printf("y_%d = \n", 0);
-    for (int i = 0; i < m; i++) {
-      printf("%f ", Y[i]);
-    }
-    printf("\n");
-
-
   T[0] = beta[0];
   for (int j = 1; j < n; j++) {
     alpha = beta[j];
@@ -215,12 +189,6 @@ __device__ int house_yt(cublasHandle_t *handle, Numeric *Y, Numeric *T, Numeric 
     v_idx = MAT_POS(j, j, m);
     z_idx = MAT_POS(0, j, n);
 
-    printf("y_%d = \n", j);
-    for (int i = 0; i < (m - j); i++) {
-      printf("%f ", Y[v_idx + i]);
-    }
-    printf("\n");
-
     // Computes -2 * t(Y) * v_j = z' in an optimized way to ignore 0 elements in v_j. Stores it in z-location of T matrix.
     #if FLOAT_NUMERIC
       res = cublasSgemm(handle2, CUBLAS_OP_T, CUBLAS_OP_N, j, 1, m - j, &alpha, &Y[y_idx], m, &Y[v_idx], m, &zero, &T[z_idx], n);
@@ -228,28 +196,12 @@ __device__ int house_yt(cublasHandle_t *handle, Numeric *Y, Numeric *T, Numeric 
       res = cublasDgemm(handle2, CUBLAS_OP_T, CUBLAS_OP_N, j, 1, m - j, &alpha, &Y[y_idx], m, &Y[v_idx], m, &zero, &T[z_idx], n);
     #endif
 
-    printf("PRE we are at j=%d\n", j);
-    for (int i = 0; i < n; i++) {
-      for (int j = 0; j < n; j++) {
-        printf("%f ", T[MAT_POS(i, j, n)]);
-      }
-      printf("\n");
-    }
-
     // Computes T * z' using a triangular matrix-vector multiplication routine.
     #if FLOAT_NUMERIC
       res = cublasStrmv(handle2, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, j, T, n, &T[z_idx], 1);
     #else
       res = cublasDtrmv(handle2, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, j, T, n, &T[z_idx], 1);
     #endif
-
-    printf("post we are at j=%d\n", j);
-    for (int i = 0; i < n; i++) {
-      for (int j = 0; j < n; j++) {
-        printf("%f ", T[MAT_POS(i, j, n)]);
-      }
-      printf("\n");
-    }
 
     T[MAT_POS(j, j, n)] = beta[j];
   }
@@ -313,7 +265,6 @@ __device__ int cublasDgemm_hmn(cublasHandle_t handle,
   CHECK_CUBLAS_RETURN(res, "Triangle portion of Hessianberg matrix multiply failed");
 
   if (m != k) {
-    printf("FORBIDDEN ZONE\n");
     #if FLOAT_NUMERIC
       res = cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m - k, n, k, &alpha, &A[k], lda, B, ldb, &zero, &C[k], ldc);
     #else
@@ -348,7 +299,6 @@ __device__ int cublasDgemm_mht(cublasHandle_t handle,
   CHECK_CUBLAS_RETURN(res, "Triangle portion of Hessianberg matrix multiply failed");
 
   if (n != k) {
-    printf("FORBIDDEN ZONE\n");
     int C_rectangle_idx = MAT_POS(0, k, ldc);
     #if FLOAT_NUMERIC
       res = cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_T, m, n, k, &alpha, A, lda, &B[k], ldb, &zero, &C[C_rectangle_idx], ldc);
