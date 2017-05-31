@@ -306,18 +306,18 @@ __device__ int cublasDgemm_hmn(cublasHandle_t handle,
   int res;
   Numeric zero = 0.0;
   #if FLOAT_NUMERIC
-    res = cublasStrmm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, diag, k, n, &alpha, A, m, B, k, C, m);
+    res = cublasStrmm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, diag, k, n, &alpha, A, lda, B, ldb, C, ldc);
   #else
-    res = cublasDtrmm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, diag, k, n, &alpha, A, m, B, k, C, m);
+    res = cublasDtrmm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, diag, k, n, &alpha, A, lda, B, ldb, C, ldc);
   #endif 
   CHECK_CUBLAS_RETURN(res, "Triangle portion of Hessianberg matrix multiply failed");
 
   if (m != k) {
     printf("FORBIDDEN ZONE\n");
     #if FLOAT_NUMERIC
-      res = cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m - k, n, k, &alpha, &A[m - k], m, B, k, &zero, &C[m - k], m);
+      res = cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m - k, n, k, &alpha, &A[k], lda, B, ldb, &zero, &C[k], ldc);
     #else
-      res = cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m - k, n, k, &alpha, &A[m - k], m, B, k, &zero, &C[m - k], m);
+      res = cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m - k, n, k, &alpha, &A[k], lda, B, ldb, &zero, &C[k], ldc);
     #endif
     CHECK_CUBLAS_RETURN(res, "Rectangle portion of Hessianberg matrix multiply failed");
   }
@@ -326,6 +326,8 @@ __device__ int cublasDgemm_hmn(cublasHandle_t handle,
 
 
 //  n, m, n
+// T (n x n) = A
+// Y (m x n) = B
 
 // Matrix-hessianberg matrix transpose multiply
 __device__ int cublasDgemm_mht(cublasHandle_t handle,
@@ -339,19 +341,19 @@ __device__ int cublasDgemm_mht(cublasHandle_t handle,
   int res;
   Numeric zero = 0.0;
   #if FLOAT_NUMERIC
-    res = cublasStrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, diag, m, k, &alpha, B, m, A, m, C, m);
+    res = cublasStrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, diag, m, k, &alpha, B, ldb, A, lda, C, ldc);
   #else
-    res = cublasDtrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, diag, m, k, &alpha, B, m, A, m, C, m);
+    res = cublasDtrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, diag, m, k, &alpha, B, ldb, A, lda, C, ldc);
   #endif 
   CHECK_CUBLAS_RETURN(res, "Triangle portion of Hessianberg matrix multiply failed");
 
   if (n != k) {
     printf("FORBIDDEN ZONE\n");
-    int C_rectangle_idx = MAT_POS(0, k, m);
+    int C_rectangle_idx = MAT_POS(0, k, ldc);
     #if FLOAT_NUMERIC
-      res = cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_T, m, n, k, &alpha, A, m, &B[k], n, &zero, &C[C_rectangle_idx], m);
+      res = cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_T, m, n, k, &alpha, A, lda, &B[k], ldb, &zero, &C[C_rectangle_idx], ldc);
     #else
-      res = cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_T, m, n, k, &alpha, A, m, &B[k], n, &zero, &C[C_rectangle_idx], m);
+      res = cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_T, m, n, k, &alpha, A, lda, &B[k], ldb, &zero, &C[C_rectangle_idx], ldc);
     #endif
     CHECK_CUBLAS_RETURN(res, "Rectangle portion of Hessianberg matrix multiply failed");
   }

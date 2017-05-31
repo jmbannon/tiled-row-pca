@@ -157,6 +157,9 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
     res = Matrix_init(&Q, m, m);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to initialize matrix on host");
 
+    res = Matrix_init(&I, m, n);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to initialize matrix on host");
+
     res = Matrix_init_diag_device(&I, m, n, 1.0);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to init identity matrix on device");
 
@@ -199,14 +202,14 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
 
 
     // Calculates T = Y * T
-    TileQR_cublasDgemm_hmn(CUBLAS_DIAG_UNIT, m, n, n, alpha, A.data_d, m, Q.data_d, n, Q.data_d, m);
+    TileQR_cublasDgemm_hmn(CUBLAS_DIAG_UNIT, m, m, n, alpha, A.data_d, m, Q.data_d, m, I.data_d, m);
     CHECK_CUBLAS_RETURN(res, "Failed to compute T = Y * T");
 
-    res = Matrix_copy_device_to_host(&Q);
+    res = Matrix_copy_device_to_host(&I);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to copy Q matrix from device to host");
 
     printf("Y * T\n");
-    Matrix_print(&Q);
+    Matrix_print(&I);
 
     // Calculates T = Q = T + I
     #if FLOAT_NUMERIC
