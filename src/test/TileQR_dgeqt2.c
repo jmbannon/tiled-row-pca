@@ -58,32 +58,30 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
     res = Block_dgeqt2(&handle, &A, &T);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to compute TileQR helper function dgeqt2");
 
-    res = Matrix_copy_device_to_host(&A);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to copy constant matrix from device to host");
-
-    res = Matrix_copy_device_to_host(&T);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to copy constant matrix from device to host");
-
+    //
     // Form Q using householder vectors and T
     //
     // Q = I + (Y * T * t(Y))
     //
-
+    ///////////////////////////////////////////////////
     Numeric alpha = 1.0;
 
-    // Calculates T = Y * T
+    // Calculates Q' = Y * T
     TileQR_cublasDgemm_hmn(CUBLAS_DIAG_UNIT, m, n, n, alpha, A.data_d, m, T.data_d, n, Q_.data_d, m);
     CHECK_CUBLAS_RETURN(res, "Failed to compute T = Y * T");
 
-    // Calculates T = T * t(Y)
+    // Calculates Q = Q' * t(Y)
+    //              = Y * T * t(Y)
     res = TileQR_cublasDgemm_mht(CUBLAS_DIAG_UNIT, m, m, n, alpha, Q_.data_d, m, A.data_d, m, Q.data_d, m);
     CHECK_CUBLAS_RETURN(res, "Failed to compute T = T * t(Y)");
 
-    // Calculates T = Q = T + I
+    // Calculates Q = I + Q
+    //              = I + (Y * T * t(Y))
     res = Matrix_add_diag_device(&Q, 1.0);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to add identity matrix");
 
-    // Calculates T = QR
+    // Calculates Q' = QR
+    //               = A
     #if FLOAT_NUMERIC
         res = cublasStrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, n, &alpha, A.data_d, m, Q.data_d, m, Q_.data_d, m);
     #else
