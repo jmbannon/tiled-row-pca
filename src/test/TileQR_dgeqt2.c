@@ -49,10 +49,10 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
     res = Matrix_init(&Q, m, m);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to initialize matrix on host");
 
-    res = Matrix_init(&I, m, m);
+    res = Matrix_init(&I, m, n);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to initialize matrix on host");
 
-    res = Matrix_init_diag_device(&I, m, m, 1.0);
+    res = Matrix_init_diag_device(&I, m, n, 1.0);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to init identity matrix on device");
 
     res = Block_dgeqt2(&handle, &A, &T);
