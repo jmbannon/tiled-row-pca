@@ -145,4 +145,11 @@ Matrix_init_rand_device(Matrix *mat,
 			            int nr_cols,
 			            unsigned long seed);
 
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+Matrix_add_diag_device(Matrix *mat,
+			           Numeric constant);
+
 #endif

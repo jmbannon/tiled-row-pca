@@ -79,10 +79,19 @@ Matrix_init_constant_device(Matrix *mat,
     return 0;
 }
 
-__global__ void device_init_diag(Numeric *in, int nr_rows, Numeric constant)
+__global__ void device_add_diag(Numeric *in, int nr_rows, Numeric constant)
 {
-	int pos = MAT_POS(threadIdx.x, threadIdx.y, nr_rows);
-	in[pos] = (threadIdx.x != threadIdx.y) ? 0.0 : constant;
+	int pos = MAT_POS(threadIdx.x, threadIdx.x, nr_rows);
+	in[pos] += constant;
+}
+
+extern "C"
+int
+Matrix_add_diag_device(Matrix *mat,
+			           Numeric constant)
+{
+	device_add_diag<<<1, mat->nr_cols>>>(mat->data_d, mat->nr_rows, constant);
+	return 0;
 }
 
 extern "C"
@@ -92,13 +101,11 @@ Matrix_init_diag_device(Matrix *mat,
 			            int nr_cols,
 			            Numeric constant)
 {
-	int res = Matrix_init_device(mat, nr_rows, nr_cols);
+	int res = Matrix_init_constant_device(mat, nr_rows, nr_cols, 0.0);
 	CHECK_ZERO_RETURN(res);
 
-    dim3 dimBlock(nr_rows, nr_cols);
-
-	device_init_diag<<<1, dimBlock>>>(mat->data_d, nr_rows, constant);
-	return 0;
+	res = Matrix_add_diag_device(mat, constant);
+	return res;
 }
 
 __global__ void device_init_seq_mem(Numeric *in, int nr_rows)

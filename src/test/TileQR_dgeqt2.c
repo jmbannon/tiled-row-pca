@@ -157,10 +157,10 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
     res = Matrix_init(&Q, m, m);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to initialize matrix on host");
 
-    res = Matrix_init(&I, m, n);
+    res = Matrix_init(&I, m, m);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to initialize matrix on host");
 
-    res = Matrix_init_diag_device(&I, m, n, 1.0);
+    res = Matrix_init_diag_device(&I, m, m, 1.0);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to init identity matrix on device");
 
     res = Matrix_copy_device_to_host(&A_orig);
@@ -212,18 +212,21 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
     Matrix_print(&I);
 
     // Calculates T = Q = T + I
-    #if FLOAT_NUMERIC
-        res = cublasSgeam(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, m, &alpha, Q.data_d, m, &alpha, I.data_d, m, Q.data_d, m);
-    #else
-        res = cublasDgeam(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, m, &alpha, Q.data_d, m, &alpha, I.data_d, m, Q.data_d, m);
-    #endif
-    CHECK_CUBLAS_RETURN(res, "Failed to compute T = Q = T + I");
+    res = Matrix_add_diag_device(&I, 1.0);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to add identity matrix");
+
+    // #if FLOAT_NUMERIC
+    //     res = cublasSgeam(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, m, &alpha, Q.data_d, m, &alpha, I.data_d, m, Q.data_d, m);
+    // #else
+    //     res = cublasDgeam(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, m, &alpha, Q.data_d, m, &alpha, I.data_d, m, Q.data_d, m);
+    // #endif
+    // CHECK_CUBLAS_RETURN(res, "Failed to compute T = Q = T + I");
 
     // Calculates T = QR
     #if FLOAT_NUMERIC
-        res = cublasStrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, n, &alpha, A.data_d, n, Q.data_d, m, Q.data_d, m);
+        res = cublasStrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, n, &alpha, A.data_d, m, I.data_d, m, Q.data_d, m);
     #else
-        res = cublasDtrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, n, &alpha, A.data_d, n, Q.data_d, m, Q.data_d, m);
+        res = cublasDtrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, n, &alpha, A.data_d, m, I.data_d, m, Q.data_d, m);
     #endif
     CHECK_CUBLAS_RETURN(res, "Failed to compute T = QR");
 
