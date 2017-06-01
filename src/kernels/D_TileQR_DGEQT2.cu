@@ -247,6 +247,58 @@ __device__ int dgeqt2(cublasHandle_t *handle, Numeric *A, Numeric *T, int m, int
   return 0;
 }
 
+/**
+  * Performs DGEQT2 on a row-binded matrix rbind(R, A).
+  *
+  * @param handle cuBLAS handle
+  * @param R n-by-n upper-triangular matrix to row-bind. May have non-zero elements in lower diagonal. Stores output R matrix from DGEQT2 here.
+  * @param A n-by-n matrix to row-bind. Stores lower portion of householder vectors from DGEQT2 in here. The 'hessianberg' portion of the householder
+  *          vectors is an identity matrix, so there is no need to store that.
+  * @param T n-by-n output matrix.
+  * @param RA_rowbind 2n-by-n work matrix to store the row-bind and compute DGEQT2 on.
+  * @param zero_tri True if lower-triangular portion of R needs to be zeroed. False otherwise.
+  */
+__device__ int dtsqt2(cublasHandle_t *handle, Numeric *R, Numeric *A, Numeric *T, Numeric *RA_rowbind, bool zero_tri, int n)
+{
+  int res;
+  int RArows = 2*n;
+
+  // TODO: Optimize
+
+  // Stores R into upper-portion of RA_rowbind. Zeroes lower-triangular portion.
+  for (int j = 0; j < n; j++) {
+    for (int i = 0; i < n; i++) {
+      RA_rowbind[MAT_POS(i, j, RArows)] = (i > j) ? 0.0 : R[MAT_POS(i, j, n)];
+    }
+  }
+
+  // Stores A into lower-portion of RA_rowbind.
+  for (int j = 0; j < n; j++) {
+    for (int i = 0; i < n; i++) {
+      RA_rowbind[MAT_POS(2*i, j, RArows)] = A[MAT_POS(i, j, n)];
+    }
+  }
+
+  res = dgeqt2(handle, RA_rowbind, T, RArows, n);
+  CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dgeqt2 on row-binded matrix");
+
+  // Stores output R matrix into upper-triangular portion of R
+  for (int j = 0; j < n; j++) {
+    for (int i = 0; i <= j; i++) {
+      R[MAT_POS(i, j, n)] = RA_rowbind[MAT_POS(i, j, RArows)];
+    }
+  }
+
+  // Stores output householder vectors into A.
+  for (int j = 0; j < n; j++) {
+    for (int i = 0; i < n; i++) {
+      A[MAT_POS(i, j, n)] = RA_rowbind[MAT_POS(2*i, j, RArows)];
+    }
+  }
+
+  return 0;
+}
+
 
 __global__ void house_kernel(Numeric *x, Numeric *v, int n) {
     cublasHandle_t handle;
