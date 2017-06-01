@@ -141,6 +141,47 @@ __device__ int house_qr_q(cublasHandle_t *handle, Numeric *Y, Numeric *T, Numeri
     return 0;
 }
 
+
+/**
+  * Multiplies a matrix A s.t. A = t(Q) * A
+  *                              = t(I + (Y * T * t(Y))) * A
+  * where Q is from a diagonal tile P, where P = QR, and A is an adjacent tile to the right of P.
+  *
+  * @param handle cuBLAS handle
+  * @param A m-by-n matrix to multiply and override. Adjacent to the source tile of Q.
+  * @param Y m-by-n Hessianberg matrix holding householder vectors.
+  * @param T n-by-n matrix.
+  * @param Q m-by-m matrix to store Q.
+  * @param Q_ m-by-n work matrix.
+  */
+__device__ int TileQR_dlarfb(cublasHandle_t *handle, Numeric *A, Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_, int m, int n)
+{
+  int res;
+
+  res = house_qr_q(handle, Y, T, Q, Q_, m, n);
+  CHECK_ZERO_ERROR_RETURN(res, "Failed to compute house_qr_q");
+
+  Numeric zero = 0.0;
+  Numeric alpha = 1.0;
+  #if FLOAT_NUMERIC
+    res = cublasSgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_N, m, n, m, &alpha, Q, m, A, m, &zero, Q_, m);
+  #else
+    res = cublasDgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_N, m, n, m, &alpha, Q, m, A, m, &zero, Q_, m);
+  #endif
+  CHECK_CUBLAS_RETURN(res, "Failed to compute Q' = t(Q) * A")
+
+
+  #if FLOAT_NUMERIC
+    res = cublasScopy(*handle, m * n, Q_, 1, A, 1);
+  #else
+    res = cublasDcopy(*handle, m * n, Q_, 1, A, 1);
+  #endif
+  CHECK_CUBLAS_RETURN(res, "Failed to copy A = Q'")
+
+  return 0;
+}
+
+
 // Wrapper kernel to house_qr_q. Use only for testing.
 __global__ void TileQR_house_qr_q_kernel(Numeric *Y,
                                          Numeric *T,
