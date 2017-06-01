@@ -1,6 +1,6 @@
-#include "Vector.h"
-#include "error.h"
-#include "constants.h"
+#include "../Vector.h"
+#include "../error.h"
+#include "../constants.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <stdlib.h>

@@ -1,6 +1,6 @@
-#include "Matrix.h"
-#include "constants.h"
-#include "error.h"
+#include "../Matrix.h"
+#include "../constants.h"
+#include "../error.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <curand_kernel.h>

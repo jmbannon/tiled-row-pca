@@ -1,6 +1,6 @@
-#include "BlockMatrix.h"
-#include "constants.h"
-#include "error.h"
+#include "../BlockMatrix.h"
+#include "../constants.h"
+#include "../error.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <stdio.h>

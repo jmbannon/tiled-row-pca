@@ -1,8 +1,8 @@
-#include "BlockMatrixOperations.h"
-#include "BlockMatrix.h"
-#include "Vector.h"
-#include "constants.h"
-#include "error.h"
+#include "../BlockMatrixOperations.h"
+#include "../BlockMatrix.h"
+#include "../Vector.h"
+#include "../constants.h"
+#include "../error.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <stdio.h>
