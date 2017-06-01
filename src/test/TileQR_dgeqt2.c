@@ -1,4 +1,4 @@
-#include "../BlockQROperations.h"
+#include "../TileQR_Operations.h"
 #include "../error.h"
 #include "../Vector.h"
 #include "../Matrix.h"
@@ -50,7 +50,7 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
 
     /////////////////////////////////////////////////
 
-    res = Block_dgeqt2(&handle, &A, &T);
+    res = TileQR_dgeqt2(&handle, &A, &T);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to compute TileQR helper function dgeqt2");
 
     //

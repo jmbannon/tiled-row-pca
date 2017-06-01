@@ -29,7 +29,7 @@ DEVICE_FLAGS    = ${SHARED_FLAGS} -arch=${CUDA_ARCH} ${CUDA_INCL}
 
 TEST_SRC        = $(wildcard src/test/*.c)
 MAIN_SRC        = $(wildcard src/main/*.c)
-DEVICE_SRC      = $(wildcard src/*.cu src/kernels/*.cu)
+DEVICE_SRC      = $(wildcard src/kernels/*.cu src/device/*.cu)
 HOST_SRC        = $(wildcard src/*.c)
 
 # - Make ---------------------------------------------------------------

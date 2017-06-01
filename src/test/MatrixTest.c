@@ -1,4 +1,3 @@
-#include "../BlockQROperations.h"
 #include "../error.h"
 #include "../Vector.h"
 #include "../Matrix.h"
