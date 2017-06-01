@@ -12,16 +12,7 @@
 extern "C"
 #endif
 int
-Block_house(cublasHandle_t *handle, Vector *in, Vector *out);
-
-/**
-  * Wrapper for single-threaded house qr kernel. Use only for testing.
-  */
-#ifdef __cplusplus
-extern "C"
-#endif
-int
-Block_house_qr(cublasHandle_t *handle, Matrix *A);
+TileQR_house(cublasHandle_t *handle, Vector *in, Vector *out);
 
 /**
   * Wrapper for single-threaded dgeqt2 kernel. Use only for testing.
@@ -30,7 +21,7 @@ Block_house_qr(cublasHandle_t *handle, Matrix *A);
 extern "C"
 #endif
 int
-Block_dgeqt2(cublasHandle_t *handle, Matrix *A, Matrix *T);
+TileQR_dgeqt2(cublasHandle_t *handle, Matrix *A, Matrix *T);
 
 
 

@@ -248,7 +248,7 @@ __device__ int dgeqt2(cublasHandle_t *handle, Numeric *A, Numeric *T, int m, int
 }
 
 
-__global__ void Block_house_kernel(Numeric *x, Numeric *v, int n) {
+__global__ void house_kernel(Numeric *x, Numeric *v, int n) {
     cublasHandle_t handle;
     int res = cublasCreate(&handle);
     house(&handle, x, v, n);
@@ -256,14 +256,14 @@ __global__ void Block_house_kernel(Numeric *x, Numeric *v, int n) {
 
 extern "C"
 int
-Block_house(cublasHandle_t *handle, Vector *in, Vector *out) {    
-    Block_house_kernel<<<1, 1>>>(in->data_d, out->data_d, in->nr_elems);
+TileQR_house(cublasHandle_t *handle, Vector *in, Vector *out) {    
+    house_kernel<<<1, 1>>>(in->data_d, out->data_d, in->nr_elems);
     return 0;
 }
 
 
 
-__global__ void Block_dgeqt2_kernel(Numeric *A, Numeric *T, int m, int n) {
+__global__ void dgeqt2_kernel(Numeric *A, Numeric *T, int m, int n) {
     cublasHandle_t handle;
     int res = cublasCreate(&handle);
 
@@ -272,8 +272,8 @@ __global__ void Block_dgeqt2_kernel(Numeric *A, Numeric *T, int m, int n) {
 
 extern "C"
 int
-Block_dgeqt2(cublasHandle_t *handle, Matrix *A, Matrix *T) {    
-    Block_dgeqt2_kernel<<<1, 1>>>(A->data_d, T->data_d, A->nr_rows, A->nr_cols);
+TileQR_dgeqt2(cublasHandle_t *handle, Matrix *A, Matrix *T) {    
+    dgeqt2_kernel<<<1, 1>>>(A->data_d, T->data_d, A->nr_rows, A->nr_cols);
     return 0;
 }
 

@@ -52,7 +52,7 @@ int Test_BlockQROperationHouse()
     res = Vector_init_device(&v);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to init constant on device");
 
-    res = Block_house(&cublas_handle, &x, &v);
+    res = TileQR_house(&cublas_handle, &x, &v);
     CHECK_ZERO_ERROR_RETURN(res, "Block householder helper function failed");
 
     res = Matrix_init_diag_device(&P, n, n, 1.0);
