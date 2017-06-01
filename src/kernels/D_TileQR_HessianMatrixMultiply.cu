@@ -89,6 +89,7 @@ __device__ int cublasDgemm_mht(cublasHandle_t handle,
     res = cublasDtrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, diag, m, k, &alpha, B, ldb, A, lda, C, ldc);
   #endif 
   CHECK_CUBLAS_RETURN(res, "Triangle portion of Hessianberg matrix multiply failed");
+  cudaDeviceSynchronize();
 
   if (n != k) {
   	// Multiply the rectangular portion if the Hessianberg matrix H is not a triangular matrix
@@ -99,10 +100,73 @@ __device__ int cublasDgemm_mht(cublasHandle_t handle,
       res = cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_T, m, n, k, &alpha, A, lda, &B[k], ldb, &zero, &C[C_rectangle_idx], ldc);
     #endif
     CHECK_CUBLAS_RETURN(res, "Rectangle portion of Hessianberg matrix multiply failed");
+    cudaDeviceSynchronize();
   }
 
   return 0;
 }
+
+
+/**
+  * Computes Q = I + (Y * T * t(Y))
+  *
+  * @param handle cuBLAS handle
+  * @param Y m-by-n Hessianberg matrix containing householder vectors in lower portion.
+  * @param T n-by-n Upper-triangular matrix
+  * @param Q_ m-by-n work matrix to store Y * T
+  * @return Q m-by-m output matrix
+  */
+__device__ int house_qr_q(cublasHandle_t *handle, Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_, int m, int n)
+{
+    int res;
+    Numeric alpha = 1.0;
+    
+    // Calculates Q' = Y * T
+    res = cublasDgemm_hmn(*handle, CUBLAS_DIAG_UNIT, m, n, n, alpha, Y, m, T, n, Q_, m);
+    CHECK_CUBLAS_RETURN(res, "Failed to compute Q' = Y * T");
+    cudaDeviceSynchronize();
+
+    // Calculates Q = Q' * t(Y)
+    //              = Y * T * t(Y)
+    res = cublasDgemm_mht(*handle, CUBLAS_DIAG_UNIT, m, m, n, alpha, Q_, m, Y, m, Q, m);
+    CHECK_CUBLAS_RETURN(res, "Failed to compute Q = Q' * t(Y)");
+    cudaDeviceSynchronize();
+
+    // Calculates Q = I + Q
+    //              = I + (Y * T * t(Y))
+    for (int i = 0; i < m; i++) {
+      Q[MAT_POS(i, i, m)] += 1.0;
+    }
+
+    return 0;
+}
+
+// Wrapper kernel to house_qr_q. Use only for testing.
+__global__ void TileQR_house_qr_q_kernel(Numeric *Y,
+                                         Numeric *T,
+                                         Numeric *Q,
+                                         Numeric *Q_,
+                                         int m, int n)
+{
+    cublasHandle_t handle;
+    int res = cublasCreate(&handle);
+
+    house_qr_q(&handle, Y, T, Q, Q_, m, n);
+}
+
+// Wrapper function to single-threaded cublasDgemm_hmn kernel. Use only for testing.
+extern "C"
+int
+TileQR_house_qr_q(Matrix *Y,
+                  Matrix *T,
+                  Matrix *Q,
+                  Matrix *Q_,
+                  int m, int n)
+{    
+    TileQR_house_qr_q_kernel<<<1, 1>>>(Y->data_d, T->data_d, Q->data_d, Q_->data_d, m, n);
+    return 0;
+}
+
 
 // Wrapper kernel to cublasDgemm_hmn. Use only for testing.
 __global__ void TileQR_cublasDgemm_hmn_kernel(cublasDiagType_t diag,

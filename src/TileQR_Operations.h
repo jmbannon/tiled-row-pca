@@ -48,4 +48,14 @@ TileQR_cublasDgemm_mht(cublasDiagType_t diag,
                        const Numeric *B, int ldb,
                        Numeric *C, int ldc);
 
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+TileQR_house_qr_q(Matrix *Y,
+                  Matrix *T,
+                  Matrix *Q,
+                  Matrix *Q_,
+                  int m, int n);
+
 #endif

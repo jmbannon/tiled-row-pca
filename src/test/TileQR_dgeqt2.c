@@ -53,30 +53,14 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
     res = TileQR_dgeqt2(&handle, &A, &T);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to compute TileQR helper function dgeqt2");
 
-    //
-    // Form Q using householder vectors and T
-    //
+    // Form Q using householder vectors in A, and T
     // Q = I + (Y * T * t(Y))
-    //
-    ///////////////////////////////////////////////////
-    Numeric alpha = 1.0;
-
-    // Calculates Q' = Y * T
-    TileQR_cublasDgemm_hmn(CUBLAS_DIAG_UNIT, m, n, n, alpha, A.data_d, m, T.data_d, n, Q_.data_d, m);
-    CHECK_CUBLAS_RETURN(res, "Failed to compute Q' = Y * T");
-
-    // Calculates Q = Q' * t(Y)
-    //              = Y * T * t(Y)
-    res = TileQR_cublasDgemm_mht(CUBLAS_DIAG_UNIT, m, m, n, alpha, Q_.data_d, m, A.data_d, m, Q.data_d, m);
-    CHECK_CUBLAS_RETURN(res, "Failed to compute Q = Q' * t(Y)");
-
-    // Calculates Q = I + Q
-    //              = I + (Y * T * t(Y))
-    res = Matrix_add_diag_device(&Q, 1.0);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to add identity matrix to Q");
+    res = TileQR_house_qr_q(&A, &T, &Q, &Q_, m, n);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to compute Q");
 
     // Calculates Q' = QR
     //               = A
+    Numeric alpha = 1.0;
     #if FLOAT_NUMERIC
         res = cublasStrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, m, n, &alpha, A.data_d, m, Q.data_d, m, Q_.data_d, m);
     #else
