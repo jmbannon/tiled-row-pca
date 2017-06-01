@@ -208,6 +208,15 @@ __device__ int house_yt(cublasHandle_t *handle, Numeric *Y, Numeric *T, Numeric 
   return 0;
 }
 
+/**
+  * Performs QR decomposition on a m-by-n matrix A. Computes upper-triangular matrix R,
+  * where A = QR and Householder vectors Y are stored in lower-diagonal portion of R.
+  * Uses Y to compute T, where Q = I + Y %*% T %*% t(Y).
+  *
+  * @param A m-by-n matrix.
+  * @param T n-by-n output matrix.
+  * @return R, Y, T, where A = QR and T for Q = I + Y %*% T %*% t(Y). Overwrites A with R and Y.
+  */
 __device__ int dgeqt2(cublasHandle_t *handle, Numeric *A, Numeric *T, int m, int n)
 {
   cublasHandle_t handle2;
