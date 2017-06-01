@@ -300,6 +300,72 @@ __device__ int dtsqt2(cublasHandle_t *handle, Numeric *R, Numeric *A, Numeric *T
 }
 
 
+/**
+  * Performs DSSRFB
+  * The original operation is rbind(A_kj, A_ij) = t(I + (V * T * t(V))) * rbind(A_kj, A_ij)
+  * It can be optimized to the following:
+  * Let X = t(T) * A_kj
+  * Let Y = t(T) * t(V) * A_ij
+  * Let Z = X + Y
+  *
+  * rbind(A_kj, A_ij) = rbind(A_kj + Z, A_ij + (V * Z))
+  *
+  *
+  *
+  */
+__device__ int dssrfb(cublasHandle_t *handle,
+                      Numeric *A_kj,
+                      Numeric *A_ij,
+                      Numeric *V,
+                      Numeric *T,
+                      Numeric *X, int ldx,
+                      Numeric *Y, int ldy,
+                      int n)
+{
+  int res;
+  Numeric alpha = 1.0;
+  Numeric zero = 0.0;
+  #if FLOAT_NUMERIC
+    res = cublasSgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_N, n, n, n, &alpha, T, n, A_kj, n, &zero, X, ldx);
+  #else
+    res = cublasDgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_N, n, n, n, &alpha, T, n, A_kj, n, &zero, X, ldx);
+  #endif
+  CHECK_CUBLAS_RETURN(res, "Failed to compute X = t(T) * A_kj");
+
+  #if FLOAT_NUMERIC
+    res = cublasSgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_T, n, n, n, &alpha, T, n, V, n, &zero, Y, ldy);
+  #else
+    res = cublasDgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_T, n, n, n, &alpha, T, n, V, n, &zero, Y, ldy);
+  #endif
+  CHECK_CUBLAS_RETURN(res, "Failed to compute Y' = t(T) * t(V)");
+
+  cudaDeviceSynchronize();
+
+  #if FLOAT_NUMERIC
+    res = cublasSgemm(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, n, &alpha, Y, ldy, A_ij, n, &alpha, X, ldx);
+  #else
+    res = cublasDgemm(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, n, &alpha, Y, ldy, A_ij, n, &alpha, X, ldx);
+  #endif
+  CHECK_CUBLAS_RETURN(res, "Failed to compute Z = X = Y' * A_ij + X");
+
+  #if FLOAT_NUMERIC
+    res = cublasSgeam(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, &alpha, A_kj, n, &alpha, X, ldx, A_kj, n);
+  #else
+    res = cublasDgeam(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, &alpha, A_kj, n, &alpha, X, ldx, A_kj, n);
+  #endif
+  CHECK_CUBLAS_RETURN(res, "Failed to compute A_kj = A_kj + Z");
+
+  #if FLOAT_NUMERIC
+    res = cublasSgemm(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, n, &alpha, V, n, X, n, &alpha, A_ij, n);
+  #else
+    res = cublasDgemm(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, n, &alpha, V, n, X, n, &alpha, A_ij, n);
+  #endif
+  CHECK_CUBLAS_RETURN(res, "Failed to compute A_ij = (V * Z) + A_ij");
+
+  return res;
+}
+
+
 __global__ void house_kernel(Numeric *x, Numeric *v, int n) {
     cublasHandle_t handle;
     int res = cublasCreate(&handle);
