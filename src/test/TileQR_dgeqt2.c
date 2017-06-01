@@ -33,8 +33,8 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
     res = Matrix_copy_device_to_host(&A);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to copy input matrix A from device to host");
 
-    // Output matrix T from dgeqt2
-    res = Matrix_init_device(&T, n, n);
+    // Output matrix T from dgeqt2. Must be initialized as zero matrix since it is used in matrix-multiply
+    res = Matrix_init_zero_device(&T, n, n);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to initialize output matrix T in device");
 
     // m-by-m matrix Q, where QR = A
