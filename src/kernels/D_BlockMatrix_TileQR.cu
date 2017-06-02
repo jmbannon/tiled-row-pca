@@ -274,15 +274,6 @@ __device__ int dtsqt2(cublasHandle_t *handle, Numeric *R, Numeric *A, Numeric *T
 
   // TODO: Optimize
 
-  printf("RBIND R INPUT\n");
-  for (int i = 0; i < n; i++) {
-    for (int j = 0; j < n; j++) {
-      printf("%f ", R[MAT_POS(i, j, n)]);
-    }
-    printf("\n");
-  }
-  printf("\n");
-
   // Stores R into upper-portion of RA_rowbind. Zeroes lower-triangular portion.
   for (int j = 0; j < n; j++) {
     for (int i = 0; i < n; i++) {
@@ -297,26 +288,31 @@ __device__ int dtsqt2(cublasHandle_t *handle, Numeric *R, Numeric *A, Numeric *T
     }
   }
 
-  printf("RBIND DGEQT2 INPUT\n");
-  for (int i = 0; i < 2*n; i++) {
-    for (int j = 0; j < n; j++) {
-      printf("%f ", RA_rowbind[MAT_POS(i, j, RArows)]);
+  printf("dtsqt2 input rbind\n");
+  for (int i = 0; i < 2*BLK_LEN; i++) {
+    for (int j = 0; j < BLK_LEN; j++) {
+      printf("%f ", RA_rowbind[MAT_POS(i, j, 2*BLK_LEN)]);
     }
     printf("\n");
   }
-  printf("\n");
 
   res = dgeqt2(handle, RA_rowbind, T, RArows, n);
   CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dgeqt2 on row-binded matrix");
 
-  printf("RBIND DGEQT2 OUTPUT\n");
-  for (int i = 0; i < 2*n; i++) {
-    for (int j = 0; j < n; j++) {
-      printf("%f ", RA_rowbind[MAT_POS(i, j, RArows)]);
+  printf("dtsqt2 output rbind\n");
+  for (int i = 0; i < 2*BLK_LEN; i++) {
+    for (int j = 0; j < BLK_LEN; j++) {
+      printf("%f ", RA_rowbind[MAT_POS(i, j, 2*BLK_LEN)]);
     }
     printf("\n");
   }
-  printf("\n");
+  printf("dtsqt2 output t\n");
+  for (int i = 0; i < BLK_LEN; i++) {
+    for (int j = 0; j < BLK_LEN; j++) {
+      printf("%f ", T[MAT_POS(i, j, BLK_LEN)]);
+    }
+    printf("\n");
+  }
 
   // Stores output R matrix into upper-triangular portion of R
   for (int j = 0; j < n; j++) {
@@ -371,12 +367,29 @@ __device__ int dssrfb(cublasHandle_t *handle,
   #endif
   CHECK_CUBLAS_RETURN(res, "Failed to compute X = t(T) * A_kj");
 
+  printf("X\n");
+  for (int i = 0; i < BLK_LEN; i++) {
+    for (int j = 0; j < BLK_LEN; j++) {
+      printf("%f ", X[MAT_POS(i, j, ldx)]);
+    }
+    printf("\n");
+  }
+
   #if FLOAT_NUMERIC
     res = cublasSgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_T, n, n, n, &alpha, T, n, V, n, &zero, Y, ldy);
   #else
     res = cublasDgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_T, n, n, n, &alpha, T, n, V, n, &zero, Y, ldy);
   #endif
   CHECK_CUBLAS_RETURN(res, "Failed to compute Y' = t(T) * t(V)");
+
+
+  printf("Y'\n");
+  for (int i = 0; i < BLK_LEN; i++) {
+    for (int j = 0; j < BLK_LEN; j++) {
+      printf("%f ", Y[MAT_POS(i, j, ldy)]);
+    }
+    printf("\n");
+  }
 
   cudaDeviceSynchronize();
 
@@ -387,6 +400,14 @@ __device__ int dssrfb(cublasHandle_t *handle,
   #endif
   CHECK_CUBLAS_RETURN(res, "Failed to compute Z = X = Y' * A_ij + X");
 
+  printf("Z\n");
+  for (int i = 0; i < BLK_LEN; i++) {
+    for (int j = 0; j < BLK_LEN; j++) {
+      printf("%f ", X[MAT_POS(i, j, ldx)]);
+    }
+    printf("\n");
+  }
+
   #if FLOAT_NUMERIC
     res = cublasSgeam(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, &alpha, A_kj, n, &alpha, X, ldx, A_kj, n);
   #else
@@ -394,12 +415,28 @@ __device__ int dssrfb(cublasHandle_t *handle,
   #endif
   CHECK_CUBLAS_RETURN(res, "Failed to compute A_kj = A_kj + Z");
 
+  printf("A_kj\n");
+  for (int i = 0; i < BLK_LEN; i++) {
+    for (int j = 0; j < BLK_LEN; j++) {
+      printf("%f ", A_kj[MAT_POS(i, j, n)]);
+    }
+    printf("\n");
+  }
+
   #if FLOAT_NUMERIC
-    res = cublasSgemm(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, n, &alpha, V, n, X, n, &alpha, A_ij, n);
+    res = cublasSgemm(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, n, &alpha, V, n, X, ldx, &alpha, A_ij, n);
   #else
-    res = cublasDgemm(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, n, &alpha, V, n, X, n, &alpha, A_ij, n);
+    res = cublasDgemm(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, n, &alpha, V, n, X, ldx, &alpha, A_ij, n);
   #endif
   CHECK_CUBLAS_RETURN(res, "Failed to compute A_ij = (V * Z) + A_ij");
+
+  printf("A_ij\n");
+  for (int i = 0; i < BLK_LEN; i++) {
+    for (int j = 0; j < BLK_LEN; j++) {
+      printf("%f ", A_ij[MAT_POS(i, j, n)]);
+    }
+    printf("\n");
+  }
 
   return res;
 }
@@ -634,6 +671,7 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
 
       res = dlarfb(&handle, A_kn, A_kk, T, Q, Q_, BLK_LEN, BLK_LEN);
       CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dlarfb");
+
     }
 
     for (int m = (k + 1); m < blk_m; m++) {
@@ -648,17 +686,41 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
       res = dtsqt2(&handle, A_kk, A_mk, T, Rbind, true, BLK_LEN);
       CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dtsqt2");
 
-      printf("Triangle update\n");
-      for (int i = 0; i < BLK_LEN; i++) {
-        for (int j = 0; j < BLK_LEN; j++) {
-          printf("%f ", A_kk[MAT_POS(i, j, BLK_LEN)]);
-        }
-        printf("\n");
-      }
-
       for (int n = (k + 1); n < blk_n; n++) {
         Numeric *A_kn = &A[BLK_POS(k, n, blk_n)];
         Numeric *A_mn = &A[BLK_POS(m, n, blk_n)];
+
+        printf("dssrfb A_kn\n");
+        for (int i = 0; i < BLK_LEN; i++) {
+          for (int j = 0; j < BLK_LEN; j++) {
+            printf("%f ", A_kn[MAT_POS(i, j, BLK_LEN)]);
+          }
+          printf("\n");
+        }
+
+        printf("dssrfb A_mn\n");
+        for (int i = 0; i < BLK_LEN; i++) {
+          for (int j = 0; j < BLK_LEN; j++) {
+            printf("%f ", A_mn[MAT_POS(i, j, BLK_LEN)]);
+          }
+          printf("\n");
+        }
+
+        printf("V\n");
+        for (int i = 0; i < BLK_LEN; i++) {
+          for (int j = 0; j < BLK_LEN; j++) {
+            printf("%f ", A_mk[MAT_POS(i, j, BLK_LEN)]);
+          }
+          printf("\n");
+        }
+
+        printf("T\n");
+        for (int i = 0; i < BLK_LEN; i++) {
+          for (int j = 0; j < BLK_LEN; j++) {
+            printf("%f ", T[MAT_POS(i, j, BLK_LEN)]);
+          }
+          printf("\n");
+        }
 
         //dssrfb(cublasHandle_t *handle, Numeric *A_kj, Numeric *A_ij, Numeric *V, Numeric *T, Numeric *X, int ldx, Numeric *Y, int ldy, int n)
         res = dssrfb(&handle, A_kn, A_mn, A_mk, T, Rbind, DBL_BLK_LEN, &Rbind[BLK_LEN], DBL_BLK_LEN, BLK_LEN);

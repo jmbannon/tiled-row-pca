@@ -37,5 +37,5 @@ int Test_TileQR(int m, int n)
 }
 
 int Test_TileQR_16_16() {
-    return Test_TileQR(8, 8);
+    return Test_TileQR(16, 8);
 }
