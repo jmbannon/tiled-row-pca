@@ -584,6 +584,17 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
   res = cudaMalloc(&Q_, BLK_SIZE_MEM);
   CHECK_CUBLAS_RETURN(res, "Failed to init Q'");
 
+  for (int i = 0; i < BLK_SIZE; i++) {
+    T[i] = 0;
+    Q[i] = 0;
+    Q_[i] = 0;
+    Rbind[i] = 0;    
+  }
+
+  for (int i = BLK_SIZE; i < 2*BLK_SIZE; i++) {
+    Rbind[i] = 0;
+  }
+
   for (int k = 0; k < min_blk_d; k++) {
     Numeric *A_kk = &A[BLK_POS(k, k, blk_n)];
 
@@ -601,6 +612,10 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
     for (int m = (k + 1); m < blk_m; m++) {
 
       Numeric *A_mk = &A[BLK_POS(m, k, blk_n)];
+
+      for (int i = 0; i < BLK_SIZE; i++) {
+        T[i] = 0;  
+      }
 
       //dtsqt2(cublasHandle_t *handle, Numeric *R, Numeric *A, Numeric *T, Numeric *RA_rowbind, bool zero_tri, int n)
       res = dtsqt2(&handle, A_kk, A_mk, T, Rbind, true, BLK_LEN);

@@ -31,11 +31,11 @@ int Test_TileQR(int m, int n)
     CHECK_ZERO_ERROR_RETURN(res, "Failed to copy block matrix from device to host");
 
     BlockMatrix_print_blocks(&A);
-    
+
     bool equals = false;
     return equals ? 0 : 1;
 }
 
 int Test_TileQR_16_16() {
-    return Test_TileQR(16, 16);
+    return Test_TileQR(8, 8);
 }
