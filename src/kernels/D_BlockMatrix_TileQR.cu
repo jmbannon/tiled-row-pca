@@ -274,6 +274,15 @@ __device__ int dtsqt2(cublasHandle_t *handle, Numeric *R, Numeric *A, Numeric *T
 
   // TODO: Optimize
 
+  printf("RBIND R INPUT\n");
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+      printf("%f ", R[MAT_POS(i, j, n)]);
+    }
+    printf("\n");
+  }
+  printf("\n");
+
   // Stores R into upper-portion of RA_rowbind. Zeroes lower-triangular portion.
   for (int j = 0; j < n; j++) {
     for (int i = 0; i < n; i++) {
@@ -284,12 +293,30 @@ __device__ int dtsqt2(cublasHandle_t *handle, Numeric *R, Numeric *A, Numeric *T
   // Stores A into lower-portion of RA_rowbind.
   for (int j = 0; j < n; j++) {
     for (int i = 0; i < n; i++) {
-      RA_rowbind[MAT_POS(2*i, j, RArows)] = A[MAT_POS(i, j, n)];
+      RA_rowbind[MAT_POS(n + i, j, RArows)] = A[MAT_POS(i, j, n)];
     }
   }
 
+  printf("RBIND DGEQT2 INPUT\n");
+  for (int i = 0; i < 2*n; i++) {
+    for (int j = 0; j < n; j++) {
+      printf("%f ", RA_rowbind[MAT_POS(i, j, RArows)]);
+    }
+    printf("\n");
+  }
+  printf("\n");
+
   res = dgeqt2(handle, RA_rowbind, T, RArows, n);
   CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dgeqt2 on row-binded matrix");
+
+  printf("RBIND DGEQT2 OUTPUT\n");
+  for (int i = 0; i < 2*n; i++) {
+    for (int j = 0; j < n; j++) {
+      printf("%f ", RA_rowbind[MAT_POS(i, j, RArows)]);
+    }
+    printf("\n");
+  }
+  printf("\n");
 
   // Stores output R matrix into upper-triangular portion of R
   for (int j = 0; j < n; j++) {
@@ -301,7 +328,7 @@ __device__ int dtsqt2(cublasHandle_t *handle, Numeric *R, Numeric *A, Numeric *T
   // Stores output householder vectors into A.
   for (int j = 0; j < n; j++) {
     for (int i = 0; i < n; i++) {
-      A[MAT_POS(i, j, n)] = RA_rowbind[MAT_POS(2*i, j, RArows)];
+      A[MAT_POS(i, j, n)] = RA_rowbind[MAT_POS(n + i, j, RArows)];
     }
   }
 
@@ -620,6 +647,14 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
       //dtsqt2(cublasHandle_t *handle, Numeric *R, Numeric *A, Numeric *T, Numeric *RA_rowbind, bool zero_tri, int n)
       res = dtsqt2(&handle, A_kk, A_mk, T, Rbind, true, BLK_LEN);
       CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dtsqt2");
+
+      printf("Triangle update\n");
+      for (int i = 0; i < BLK_LEN; i++) {
+        for (int j = 0; j < BLK_LEN; j++) {
+          printf("%f ", A_kk[MAT_POS(i, j, BLK_LEN)]);
+        }
+        printf("\n");
+      }
 
       for (int n = (k + 1); n < blk_n; n++) {
         Numeric *A_kn = &A[BLK_POS(k, n, blk_n)];
