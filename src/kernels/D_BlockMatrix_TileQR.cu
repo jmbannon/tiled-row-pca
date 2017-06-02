@@ -3,6 +3,7 @@
 #include "../error.h"
 #include "../Vector.h"
 #include "../Matrix.h"
+#include "../BlockMatrix.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
@@ -526,7 +527,7 @@ __device__ int house_qr_q(cublasHandle_t *handle, Numeric *Y, Numeric *T, Numeri
   * @param Q m-by-m matrix to store Q.
   * @param Q_ m-by-n work matrix.
   */
-__device__ int TileQR_dlarfb(cublasHandle_t *handle, Numeric *A, Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_, int m, int n)
+__device__ int dlarfb(cublasHandle_t *handle, Numeric *A, Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_, int m, int n)
 {
   int res;
 
@@ -553,6 +554,71 @@ __device__ int TileQR_dlarfb(cublasHandle_t *handle, Numeric *A, Numeric *Y, Num
   return 0;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// TileQR
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+__device__ int BlockMatrix_TileQR_single_thread(Numeric *A, int blk_m, int blk_n)
+{
+  int res;
+  Numeric *T;
+  Numeric *Rbind;
+  Numeric *Q;
+  Numeric *Q_;
+
+  int min_blk_d = blk_m > blk_n ? blk_n : blk_m;
+
+  cublasHandle_t handle;
+  res = cublasCreate(&handle);
+  CHECK_CUBLAS_RETURN(res, "Failed to init handle");
+
+  res = cudaMalloc(&T, BLK_SIZE_MEM);
+  CHECK_CUBLAS_RETURN(res, "Failed to init T");
+
+  res = cudaMalloc(&Rbind, 2 * BLK_SIZE_MEM);
+  CHECK_CUBLAS_RETURN(res, "Failed to init Rbind");
+
+  res = cudaMalloc(&Q, BLK_SIZE_MEM);
+  CHECK_CUBLAS_RETURN(res, "Failed to init Q");
+
+  res = cudaMalloc(&Q_, BLK_SIZE_MEM);
+  CHECK_CUBLAS_RETURN(res, "Failed to init Q'");
+
+  for (int k = 0; k < min_blk_d; k++) {
+    Numeric *A_kk = &A[BLK_POS(k, k, blk_n)];
+
+    res = dgeqt2(&handle, A_kk, T, BLK_LEN, BLK_LEN);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dgeqt2");
+
+    for (int n = (k + 1); n < blk_n; n++) {
+
+      Numeric *A_kn = &A[BLK_POS(k, n, blk_n)];
+
+      res = dlarfb(&handle, A_kn, A_kk, T, Q, Q_, BLK_LEN, BLK_LEN);
+      CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dlarfb");
+    }
+
+    for (int m = (k + 1); m < blk_m; m++) {
+
+      Numeric *A_mk = &A[BLK_POS(m, k, blk_n)];
+
+      //dtsqt2(cublasHandle_t *handle, Numeric *R, Numeric *A, Numeric *T, Numeric *RA_rowbind, bool zero_tri, int n)
+      res = dtsqt2(&handle, A_kk, A_mk, T, Rbind, true, BLK_LEN);
+      CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dtsqt2");
+
+      for (int n = (k + 1); n < blk_n; n++) {
+        Numeric *A_kn = &A[BLK_POS(k, n, blk_n)];
+        Numeric *A_mn = &A[BLK_POS(m, n, blk_n)];
+
+        //dssrfb(cublasHandle_t *handle, Numeric *A_kj, Numeric *A_ij, Numeric *V, Numeric *T, Numeric *X, int ldx, Numeric *Y, int ldy, int n)
+        res = dssrfb(&handle, A_kn, A_mn, A_mk, T, Rbind, 2*n, &Rbind[BLK_LEN], 2*n, n);
+        CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dssrfb");
+      }
+    }
+  }
+
+  return 0;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // KERNEL WRAPPERS
