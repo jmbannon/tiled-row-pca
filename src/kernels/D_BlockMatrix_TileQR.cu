@@ -558,7 +558,7 @@ __device__ int dlarfb(cublasHandle_t *handle, Numeric *A, Numeric *Y, Numeric *T
 // TileQR
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-__device__ int BlockMatrix_TileQR_single_thread(Numeric *A, int blk_m, int blk_n)
+__device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, int blk_n)
 {
   int res;
   Numeric *T;
@@ -611,7 +611,7 @@ __device__ int BlockMatrix_TileQR_single_thread(Numeric *A, int blk_m, int blk_n
         Numeric *A_mn = &A[BLK_POS(m, n, blk_n)];
 
         //dssrfb(cublasHandle_t *handle, Numeric *A_kj, Numeric *A_ij, Numeric *V, Numeric *T, Numeric *X, int ldx, Numeric *Y, int ldy, int n)
-        res = dssrfb(&handle, A_kn, A_mn, A_mk, T, Rbind, 2*n, &Rbind[BLK_LEN], 2*n, n);
+        res = dssrfb(&handle, A_kn, A_mn, A_mk, T, Rbind, DBL_BLK_LEN, &Rbind[BLK_LEN], DBL_BLK_LEN, BLK_LEN);
         CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dssrfb");
       }
     }
@@ -623,6 +623,19 @@ __device__ int BlockMatrix_TileQR_single_thread(Numeric *A, int blk_m, int blk_n
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // KERNEL WRAPPERS
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+__global__ void TileQR_wrapper(Numeric *A, int blk_m, int blk_n)
+{
+  BlockMatrix_TileQR_single_thread_kernel(A, blk_m, blk_n);
+}
+
+extern "C"
+int
+BlockMatrix_TileQR_single_thread(BlockMatrix *A)
+{
+  TileQR_wrapper<<<1, 1>>>(A->data_d, A->nr_blk_rows, A->nr_blk_cols);
+  return 0;
+}
 
 
 __global__ void house_kernel(Numeric *x, Numeric *v, int n) {

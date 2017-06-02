@@ -29,6 +29,7 @@ void addAllTests() {
 	addTest("Test_BlockQROperationHouse", Test_BlockQROperationHouse);
 	addTest("Test_TileQR_dgeqt2", Test_TileQR_dgeqt2);
 	addTest("Test_TileQR_dgeqt2_rect", Test_TileQR_dgeqt2_rect);
+	addTest("Test_TileQR_16_16", Test_TileQR_16_16);
 }
 
 int TestAll() {
