@@ -8,6 +8,7 @@ int Test_BlockQROperationHouse();
 int Test_Matrix_copy_device_to_host();
 int Test_TileQR_dgeqt2();
 int Test_TileQR_dgeqt2_rect();
+int Test_TileQR_16_16();
 
 int TestAll();
 

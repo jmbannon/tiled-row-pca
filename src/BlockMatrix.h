@@ -14,6 +14,8 @@
 /* Translates a row,col index to a block format index (column-wise) */
 #define POS(i,j,nr_blk_cols) ((BLK_ROW(i) * nr_blk_cols * BLK_SIZE) + (BLK_COL(j) * BLK_SIZE) + (BLK_J(j) * BLK_LEN) + BLK_I(i))
 
+#define BLK_POS(i,j,blk_cols) POS((i) * BLK_LEN, (j) * BLK_LEN, blk_cols) 
+
 typedef struct _BlockMatrix {
     int nr_rows;   // Number of rows
     int nr_cols;   // Number of columns
@@ -35,6 +37,13 @@ BlockMatrix_init_constant(BlockMatrix *mat,
 	                      int nr_rows,
 	                      int nr_cols,
 	                      Numeric constant);
+
+int
+BlockMatrix_init_rand(BlockMatrix *mat,
+                      int nr_rows,
+                      int nr_cols,
+                      int range,
+                      unsigned int seed);
 
 /**
  * Initializes a matrix with 0s.

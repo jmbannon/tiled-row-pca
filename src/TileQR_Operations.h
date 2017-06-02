@@ -1,5 +1,6 @@
 #include "Vector.h"
 #include "Matrix.h"
+#include "BlockMatrix.h"
 #include <cublas_v2.h>
 
 #ifndef BLOCK_QR_OPERATIONS_H_
@@ -57,5 +58,12 @@ TileQR_house_qr_q(Matrix *Y,
                   Matrix *Q,
                   Matrix *Q_,
                   int m, int n);
+
+
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+BlockMatrix_TileQR_single_thread(BlockMatrix *A);
 
 #endif

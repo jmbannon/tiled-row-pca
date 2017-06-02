@@ -77,6 +77,26 @@ BlockMatrix_init_constant(BlockMatrix *mat,
     return 0;
 }
 
+int
+BlockMatrix_init_rand(BlockMatrix *mat,
+                      int nr_rows,
+                      int nr_cols,
+                      int range,
+                      unsigned int seed)
+{
+    int res = BlockMatrix_init(mat, nr_rows, nr_cols);
+    CHECK_ZERO_RETURN(res);
+
+    srand(seed);
+
+    int size = mat->nr_blk_rows * mat->nr_blk_cols * BLK_SIZE;
+    for (int i = 0; i < size; i++) {
+        mat->data[i] = rand() % range;
+    }
+
+    return 0;
+}
+
 /**
  * Initializes a matrix with 0s.
  */
@@ -97,14 +117,15 @@ BlockMatrix_init_zero(BlockMatrix *mat,
 int
 BlockMatrix_print(BlockMatrix *mat)
 {
+    const int max_width = 7;
     int idx;
     int i, j;
     for (i = 0; i < mat->nr_rows; i++) {
         for (j = 0; j < mat->nr_cols; j++) {
             idx = POS(i,j,mat->nr_blk_cols);
-            printf("%.3f ", mat->data[idx]);
+            printf("%*.3f ", max_width, mat->data[idx]);
         }
-        printf(" %d %d \n", i, j);
+        printf("\n");
     }
     return 0;
 }

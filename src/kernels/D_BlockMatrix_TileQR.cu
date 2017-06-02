@@ -3,6 +3,7 @@
 #include "../error.h"
 #include "../Vector.h"
 #include "../Matrix.h"
+#include "../BlockMatrix.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
@@ -283,7 +284,7 @@ __device__ int dtsqt2(cublasHandle_t *handle, Numeric *R, Numeric *A, Numeric *T
   // Stores A into lower-portion of RA_rowbind.
   for (int j = 0; j < n; j++) {
     for (int i = 0; i < n; i++) {
-      RA_rowbind[MAT_POS(2*i, j, RArows)] = A[MAT_POS(i, j, n)];
+      RA_rowbind[MAT_POS(n + i, j, RArows)] = A[MAT_POS(i, j, n)];
     }
   }
 
@@ -300,7 +301,7 @@ __device__ int dtsqt2(cublasHandle_t *handle, Numeric *R, Numeric *A, Numeric *T
   // Stores output householder vectors into A.
   for (int j = 0; j < n; j++) {
     for (int i = 0; i < n; i++) {
-      A[MAT_POS(i, j, n)] = RA_rowbind[MAT_POS(2*i, j, RArows)];
+      A[MAT_POS(i, j, n)] = RA_rowbind[MAT_POS(n + i, j, RArows)];
     }
   }
 
@@ -367,9 +368,9 @@ __device__ int dssrfb(cublasHandle_t *handle,
   CHECK_CUBLAS_RETURN(res, "Failed to compute A_kj = A_kj + Z");
 
   #if FLOAT_NUMERIC
-    res = cublasSgemm(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, n, &alpha, V, n, X, n, &alpha, A_ij, n);
+    res = cublasSgemm(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, n, &alpha, V, n, X, ldx, &alpha, A_ij, n);
   #else
-    res = cublasDgemm(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, n, &alpha, V, n, X, n, &alpha, A_ij, n);
+    res = cublasDgemm(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, n, &alpha, V, n, X, ldx, &alpha, A_ij, n);
   #endif
   CHECK_CUBLAS_RETURN(res, "Failed to compute A_ij = (V * Z) + A_ij");
 
@@ -526,7 +527,7 @@ __device__ int house_qr_q(cublasHandle_t *handle, Numeric *Y, Numeric *T, Numeri
   * @param Q m-by-m matrix to store Q.
   * @param Q_ m-by-n work matrix.
   */
-__device__ int TileQR_dlarfb(cublasHandle_t *handle, Numeric *A, Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_, int m, int n)
+__device__ int dlarfb(cublasHandle_t *handle, Numeric *A, Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_, int m, int n)
 {
   int res;
 
@@ -553,10 +554,101 @@ __device__ int TileQR_dlarfb(cublasHandle_t *handle, Numeric *A, Numeric *Y, Num
   return 0;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// TileQR
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+__device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, int blk_n)
+{
+  int res;
+  Numeric *T;
+  Numeric *Rbind;
+  Numeric *Q;
+  Numeric *Q_;
+
+  int min_blk_d = blk_m > blk_n ? blk_n : blk_m;
+
+  cublasHandle_t handle;
+  res = cublasCreate(&handle);
+  CHECK_CUBLAS_RETURN(res, "Failed to init handle");
+
+  res = cudaMalloc(&T, BLK_SIZE_MEM);
+  CHECK_CUBLAS_RETURN(res, "Failed to init T");
+
+  res = cudaMalloc(&Rbind, 2 * BLK_SIZE_MEM);
+  CHECK_CUBLAS_RETURN(res, "Failed to init Rbind");
+
+  res = cudaMalloc(&Q, BLK_SIZE_MEM);
+  CHECK_CUBLAS_RETURN(res, "Failed to init Q");
+
+  res = cudaMalloc(&Q_, BLK_SIZE_MEM);
+  CHECK_CUBLAS_RETURN(res, "Failed to init Q'");
+
+  for (int i = 0; i < BLK_SIZE; i++) {
+    T[i] = 0;
+    Q[i] = 0;
+    Q_[i] = 0;
+    Rbind[i] = 0;    
+  }
+
+  for (int i = BLK_SIZE; i < 2*BLK_SIZE; i++) {
+    Rbind[i] = 0;
+  }
+
+  for (int k = 0; k < min_blk_d; k++) {
+    Numeric *A_kk = &A[BLK_POS(k, k, blk_n)];
+
+    res = dgeqt2(&handle, A_kk, T, BLK_LEN, BLK_LEN);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dgeqt2");
+
+    for (int n = (k + 1); n < blk_n; n++) {
+
+      Numeric *A_kn = &A[BLK_POS(k, n, blk_n)];
+
+      res = dlarfb(&handle, A_kn, A_kk, T, Q, Q_, BLK_LEN, BLK_LEN);
+      CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dlarfb");
+
+    }
+
+    for (int m = (k + 1); m < blk_m; m++) {
+
+      Numeric *A_mk = &A[BLK_POS(m, k, blk_n)];
+      for (int i = 0; i < BLK_SIZE; i++) {
+        T[i] = 0;  
+      }
+
+      res = dtsqt2(&handle, A_kk, A_mk, T, Rbind, true, BLK_LEN);
+      CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dtsqt2");
+
+      for (int n = (k + 1); n < blk_n; n++) {
+        Numeric *A_kn = &A[BLK_POS(k, n, blk_n)];
+        Numeric *A_mn = &A[BLK_POS(m, n, blk_n)];
+
+        res = dssrfb(&handle, A_kn, A_mn, A_mk, T, Rbind, DBL_BLK_LEN, &Rbind[BLK_LEN], DBL_BLK_LEN, BLK_LEN);
+        CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dssrfb");
+      }
+    }
+  }
+
+  return 0;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // KERNEL WRAPPERS
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+__global__ void TileQR_wrapper(Numeric *A, int blk_m, int blk_n)
+{
+  BlockMatrix_TileQR_single_thread_kernel(A, blk_m, blk_n);
+}
+
+extern "C"
+int
+BlockMatrix_TileQR_single_thread(BlockMatrix *A)
+{
+  TileQR_wrapper<<<1, 1>>>(A->data_d, A->nr_blk_rows, A->nr_blk_cols);
+  return 0;
+}
 
 
 __global__ void house_kernel(Numeric *x, Numeric *v, int n) {
