@@ -62,6 +62,16 @@ int Test_TileQR(int m, int n, int range, unsigned int seed)
     CHECK_ZERO_ERROR_RETURN(res, "Failed to copy block matrix from device to host");
 
     bool equals = compare_r(&expected_output, &A);
+
+    res = BlockMatrix_free(&A);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to free block matrix from host");
+
+    res = BlockMatrix_free_device(&A);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to free block matrix from device");
+
+    res = Matrix_free(&expected_output);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to free matrix from host");
+
     return equals ? 0 : 1;
 }
 
