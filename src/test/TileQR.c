@@ -15,7 +15,9 @@
 bool compare_r(Matrix *a, BlockMatrix *b) {
     Numeric a_sign, b_sign, compare_sign;
     
-    for (int i = 0; i < a->nr_rows; i++) {
+    int min_dim = (a->nr_rows > a->nr_cols) ? a->nr_cols : a->nr_rows;
+
+    for (int i = 0; i < min_dim; i++) {
         // Values are unique up to the sign of the rows of R.
         a_sign = (a->data[MAT_POS(i, i, a->nr_rows)] >= 0) ? 1 : -1;
         b_sign = (b->data[POS(i, i, b->nr_blk_cols)] >= 0) ? 1 : -1;
