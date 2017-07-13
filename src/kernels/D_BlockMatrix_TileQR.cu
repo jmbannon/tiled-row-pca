@@ -141,6 +141,10 @@ __device__ int house_qr(cublasHandle_t *handle, Numeric *A, Numeric *beta, Numer
       CHECK_CUBLAS_RETURN(res, "Failed to copy householder vector into lower-triangular portion of A");
     }
   }
+
+  res = cudaFree(v);
+  CHECK_SUCCESS_RETURN(res);
+
   return res;
 }
 
@@ -248,6 +252,12 @@ __device__ int dgeqt2(cublasHandle_t *handle, Numeric *A, Numeric *T, int m, int
     diag_idx = MAT_POS(i, i, m);
     A[diag_idx] = w[i];
   }
+
+  res = cudaFree(&w);
+  CHECK_SUCCESS_RETURN(res);
+
+  res = cudaFree(&beta);
+  CHECK_SUCCESS_RETURN(res);
 
   return 0;
 }
@@ -629,6 +639,18 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
       }
     }
   }
+
+  res = cudaFree(&T);
+  CHECK_SUCCESS_RETURN(res);
+
+  res = cudaFree(&Rbind);
+  CHECK_SUCCESS_RETURN(res);
+
+  res = cudaFree(&Q);
+  CHECK_SUCCESS_RETURN(res);
+
+  res = cudaFree(&Q_);
+  CHECK_SUCCESS_RETURN(res);
 
   return 0;
 }
