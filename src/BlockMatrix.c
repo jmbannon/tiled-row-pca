@@ -97,14 +97,15 @@ BlockMatrix_init_zero(BlockMatrix *mat,
 int
 BlockMatrix_print(BlockMatrix *mat)
 {
+    const int max_width = 7;
     int idx;
     int i, j;
     for (i = 0; i < mat->nr_rows; i++) {
         for (j = 0; j < mat->nr_cols; j++) {
             idx = POS(i,j,mat->nr_blk_cols);
-            printf("%.3f ", mat->data[idx]);
+            printf("%*.3f ", max_width, mat->data[idx]);
         }
-        printf(" %d %d \n", i, j);
+        printf("\n");
     }
     return 0;
 }
