@@ -30,14 +30,14 @@ bool compare_r(Matrix *a, BlockMatrix *b) {
     return true;
 }
 
-int Test_TileQR(int m, int n)
+int Test_TileQR(int m, int n, int range, unsigned int seed)
 {
     int res;
 
     BlockMatrix A;
     Matrix expected_output;
 
-    res = BlockMatrix_init_rand(&A, m, n, 4, 360);
+    res = BlockMatrix_init_rand(&A, m, n, range, seed);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to init rand block matrix");
 
     res = Matrix_init(&expected_output, m, n);
@@ -66,5 +66,9 @@ int Test_TileQR(int m, int n)
 }
 
 int Test_TileQR_16_16() {
-    return Test_TileQR(16, 8);
+    return Test_TileQR(16, 8, 4, 360);
+}
+
+int Test_TileQR_1024_64() {
+    return Test_TileQR(1024, 64, 500, 253);
 }

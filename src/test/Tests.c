@@ -30,6 +30,7 @@ void addAllTests() {
 	addTest("Test_TileQR_dgeqt2", Test_TileQR_dgeqt2);
 	addTest("Test_TileQR_dgeqt2_rect", Test_TileQR_dgeqt2_rect);
 	addTest("Test_TileQR_16_16", Test_TileQR_16_16);
+	addTest("Test_TileQR_1024_64", Test_TileQR_1024_64);
 }
 
 int TestAll() {
