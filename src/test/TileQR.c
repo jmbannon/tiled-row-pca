@@ -82,3 +82,7 @@ int Test_TileQR_16_16() {
 int Test_TileQR_1024_64() {
     return Test_TileQR(1024, 64, 500, 253);
 }
+
+int Test_TileQR_71_29() {
+    return Test_TileQR(79, 29, 500, 666);
+}

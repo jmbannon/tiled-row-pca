@@ -90,8 +90,14 @@ BlockMatrix_init_rand(BlockMatrix *mat,
     srand(seed);
 
     int size = mat->nr_blk_rows * mat->nr_blk_cols * BLK_SIZE;
-    for (int i = 0; i < size; i++) {
-        mat->data[i] = rand() % range;
+    for (int i = 0; i < (mat->nr_blk_rows * BLK_LEN); i++) {
+        for (int j = 0; j < (mat->nr_blk_cols * BLK_LEN); j++) {
+            if (i < nr_rows && j < nr_cols) {
+                mat->data[POS(i, j, mat->nr_blk_cols)] = rand() % range;
+            } else {
+                mat->data[POS(i, j, mat->nr_blk_cols)] = 0;
+            }
+        }
     }
 
     return 0;

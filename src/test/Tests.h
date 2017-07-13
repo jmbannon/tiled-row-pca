@@ -10,6 +10,7 @@ int Test_TileQR_dgeqt2();
 int Test_TileQR_dgeqt2_rect();
 int Test_TileQR_16_16();
 int Test_TileQR_1024_64();
+int Test_TileQR_71_29();
 
 int TestAll();
 
