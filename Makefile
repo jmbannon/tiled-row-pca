@@ -21,7 +21,7 @@ LAPACK          = ${LAPACK_LIB_INCL} ${LAPACK_C_INCL} ${LAPACK_ARGS}
 CUDA_FLAGS      = -lcuda -lcudart -lcublas -lcublas_device
 CUDA_INCL       = -I/usr/local/lib/cuda/include -L${CUDA_LIB_DIR} ${CUDA_FLAGS}
 
-SHARED_FLAGS    = -Wno-deprecated-gpu-targets
+SHARED_FLAGS    = -Wno-deprecated-gpu-targets -g
 HOST_FLAGS      = ${SHARED_FLAGS} ${LOCAL} ${LAPACK} ${OMP} ${OMPI} ${CUDA}
 DEVICE_FLAGS    = ${SHARED_FLAGS} -arch=${CUDA_ARCH} ${CUDA_INCL}
 
