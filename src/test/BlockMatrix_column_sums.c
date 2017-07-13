@@ -52,9 +52,6 @@ int Test_BlockMatrix_column_sums()
     res = Vector_copy_device_to_host(&columnSums);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to copy device to host");
 
-    res = Vector_free_device(&columnSums);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to free device vector");
-
     Numeric expectedOutput = constant * nrRows * scalar;
     bool equals = true;
 
@@ -64,6 +61,8 @@ int Test_BlockMatrix_column_sums()
     }
 
     BlockMatrix_free(&matrix);
+    BlockMatrix_free_device(&matrix);
     Vector_free(&columnSums);
+    Vector_free_device(&columnSums);
     return equals ? 0 : 1;
 }

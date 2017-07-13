@@ -80,6 +80,13 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
         }
     }
 
+    Matrix_free(&A);
+    Matrix_free_device(&A);
+    Matrix_free_device(&T);
+    Matrix_free_device(&Q);
+    Matrix_free(&Q_);
+    Matrix_free_device(&Q_);
+
     return equals ? 0 : 1;
 }
 

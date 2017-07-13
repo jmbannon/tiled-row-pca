@@ -70,6 +70,7 @@ int Test_DistBlockMatrix_normalize()
     	equals = DoubleCompare(col_means.data[i++], 0.0);
     }
 
+    DistBlockMatrix_free_device(&mat);
     DistBlockMatrix_free(&mat, world_rank);
     Vector_free(&col_means);
 

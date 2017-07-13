@@ -55,12 +55,6 @@ int Test_BlockMatrixVector_sub()
     res = Vector_copy_device_to_host(&columnSums);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to copy vector from device to host");
 
-    res = BlockMatrix_free_device(&matrix);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to free device vector");
-
-    res = Vector_free_device(&columnSums);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to free device vector");
-
     bool equals = true;
 
     int i = 0;
@@ -68,7 +62,16 @@ int Test_BlockMatrixVector_sub()
     	equals = DoubleCompare(columnSums.data[i++], expectedOutput);
     }
 
-    BlockMatrix_free(&matrix);
+    res = BlockMatrix_free(&matrix);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to free host matrix");
+
+    res = BlockMatrix_free_device(&matrix);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to free device matrix");
+
     Vector_free(&columnSums);
+
+    res = Vector_free_device(&columnSums);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to free device vector");
+
     return equals ? 0 : 1;
 }

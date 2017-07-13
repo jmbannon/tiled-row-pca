@@ -31,5 +31,8 @@ int Test_Matrix_copy_device_to_host()
     	}
     }
 
+    Matrix_free(&P);
+    Matrix_free_device(&P);
+
     return equals ? 0 : 1;
 }

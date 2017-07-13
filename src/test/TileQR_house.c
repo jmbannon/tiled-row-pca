@@ -119,5 +119,12 @@ int Test_BlockQROperationHouse()
         }
     }
 
+    Vector_free(&x);
+    Vector_free_device(&x);
+    Vector_free(&v);
+    Vector_free_device(&v);
+    Matrix_free(&P);
+    Matrix_free_device(&P);
+
     return equals ? 0 : 1;
 }
