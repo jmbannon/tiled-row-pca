@@ -77,6 +77,26 @@ BlockMatrix_init_constant(BlockMatrix *mat,
     return 0;
 }
 
+int
+BlockMatrix_init_rand(BlockMatrix *mat,
+                      int nr_rows,
+                      int nr_cols,
+                      int range,
+                      unsigned int seed)
+{
+    int res = BlockMatrix_init(mat, nr_rows, nr_cols);
+    CHECK_ZERO_RETURN(res);
+
+    srand(seed);
+
+    int size = mat->nr_blk_rows * mat->nr_blk_cols * BLK_SIZE;
+    for (int i = 0; i < size; i++) {
+        mat->data[i] = rand() % range;
+    }
+
+    return 0;
+}
+
 /**
  * Initializes a matrix with 0s.
  */

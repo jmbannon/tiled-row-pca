@@ -2,6 +2,7 @@
 #define _MATRIX_H_
 
 #include "constants.h"
+#include "BlockMatrix.h"
 
 #define MAT_POS(i, j, nr_rows) ((j) * (nr_rows) + (i))
 
@@ -41,6 +42,9 @@ int
 Matrix_init_zero(Matrix *mat,
                  int nr_rows,
                  int nr_cols);
+
+int
+Matrix_copy_BlockMatrix(Matrix *m, BlockMatrix *cp);
 
 int
 Matrix_free(Matrix *mat);

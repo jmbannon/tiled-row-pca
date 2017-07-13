@@ -1,4 +1,5 @@
 #include "Matrix.h"
+#include "BlockMatrix.h"
 #include "constants.h"
 #include "error.h"
 #include <stdio.h>
@@ -37,6 +38,20 @@ Matrix_init(Matrix *mat,
 	Matrix_init_info(mat, nr_rows, nr_cols);
     mat->data = (Numeric *)malloc(Matrix_size_bytes(mat));
     CHECK_MALLOC_RETURN(mat->data);
+
+    return 0;
+}
+
+int
+Matrix_copy_BlockMatrix(Matrix *m, BlockMatrix *cp)
+{
+    CHECK_ERROR_RETURN(m->nr_rows != cp->nr_rows || m->nr_cols != cp->nr_cols, "Dimensions do not match", INVALID_DIMS);
+
+    for (int i = 0; i < m->nr_rows; i++) {
+        for (int j = 0; j < m->nr_cols; j++) {
+            m->data[MAT_POS(i, j, m->nr_rows)] = cp->data[POS(i, j, cp->nr_blk_cols)];
+        }
+    }
 
     return 0;
 }

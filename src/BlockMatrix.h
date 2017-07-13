@@ -38,6 +38,13 @@ BlockMatrix_init_constant(BlockMatrix *mat,
 	                      int nr_cols,
 	                      Numeric constant);
 
+int
+BlockMatrix_init_rand(BlockMatrix *mat,
+                      int nr_rows,
+                      int nr_cols,
+                      int range,
+                      unsigned int seed);
+
 /**
  * Initializes a matrix with 0s.
  *
