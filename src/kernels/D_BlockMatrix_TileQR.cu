@@ -655,6 +655,138 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
   return 0;
 }
 
+//////////////////////
+// Parallel QR
+//////////////////////
+
+
+/**
+ * Performs DGEQT2 on a diagonal block of the BlockMatrix A.
+ *
+ * @param A Pointer to start of A
+ * @param ldba Leading block dimension of A
+ * @param T BLK_LEN-by-BLK_LEN storage matrix for result
+ * @param k Block row and column (diagonal block) to perform DGEQT2 on
+ */
+__global__ void dgeqt2_kernel(Numeric *A, Numeric *T) {
+    cublasHandle_t handle;
+    int res = cublasCreate(&handle);
+
+    dgeqt2(&handle, A, T, BLK_LEN, BLK_LEN);
+}
+
+/**
+  * Multiplies a matrix A s.t. A = t(Q) * A
+  *                              = t(I + (Y * T * t(Y))) * A
+  * where Q is from a diagonal tile P, where P = QR, and A is an adjacent tile to the right of P.
+  *
+  * @param M Pointer to beginning of BlockMatrix M
+  * @param i Block row to perform on
+  * @param T n-by-n matrix
+  *
+  */
+
+  /**
+  * Multiplies a matrix A s.t. A = t(Q) * A
+  *                              = t(I + (Y * T * t(Y))) * A
+  * where Q is from a diagonal tile P, where P = QR, and A is an adjacent tile to the right of P.
+  *
+  * @param handle cuBLAS handle
+  * @param A m-by-n matrix to multiply and override. Adjacent to the source tile of Q.
+  * @param Y m-by-n Hessianberg matrix holding householder vectors.
+  * @param T n-by-n matrix.
+  * @param Q m-by-m matrix to store Q.
+  * @param Q_ m-by-n work matrix.
+  *
+  * res = dlarfb(&handle, A_kn, A_kk, T, Q, Q_, BLK_LEN, BLK_LEN);
+  */
+__global__ void dlarfb_kernel(Numeric *M, int lbdm, int k, Numeric *T) {
+    Numeric Q[BLK_SIZE];
+    Numeric Q_[BLK_SIZE];
+    cublasHandle_t handle;
+    int res = cublasCreate(&handle);
+    // check res
+
+    Numeric *M_kk = &M[BLK_POS(k, k, lbdm)];
+    Numeric *M_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
+
+    res = dlarfb(&handle, M_kn, M_kk, T, Q, Q_, BLK_LEN, BLK_LEN);
+    // check res
+}
+
+__global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m) {
+  cublasHandle_t handle;
+  int res = cublasCreate(&handle);
+  // check res
+
+  __shared__ Numeric T[BLK_SIZE];
+  __shared__ Numeric Rbind[DBL_BLK_SIZE];
+  __shared__ bool mutex;
+
+  if (threadIdx.x == 0) {
+    mutex = true;
+  }
+  __syncthreads();
+
+  Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
+  Numeric *A_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
+  Numeric *A_mn = &M[BLK_POS(m, k + 1 + threadIdx.x, lbdm)];
+
+  if (threadIdx.x == 0) {
+    Numeric *A_kk = &M[BLK_POS(k, k, lbdm)];
+
+    res = dtsqt2(&handle, A_kk, A_mk, T, Rbind, true, BLK_LEN); // check res
+    //CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dtsqt2");
+
+    mutex = false;
+  } else {
+    while(mutex) {}
+  }
+
+  res = dssrfb(&handle, A_kn, A_mn, A_mk, T, Rbind, DBL_BLK_LEN, &Rbind[BLK_LEN], DBL_BLK_LEN, BLK_LEN); // check res
+  //CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dssrfb");
+}
+
+extern "C"
+int
+BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM)
+{    
+  int res;
+  Numeric *M;
+  Numeric *T;
+
+  M = BlkM->data;
+  int blk_m = BlkM->nr_blk_rows;
+  int blk_n = BlkM->nr_blk_cols;
+
+  int min_blk_d = blk_m > blk_n ? blk_n : blk_m;
+
+
+  res = cudaMalloc(&T, BLK_SIZE_MEM);
+  CHECK_CUBLAS_RETURN(res, "Failed to init T");
+
+  for (int k = 0; k < min_blk_d; k++) {
+    Numeric *A_kk = &M[BLK_POS(k, k, blk_n)];
+
+    dgeqt2_kernel<<<1,1>>>(A_kk, T); // check res
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dgeqt2");
+
+    dlarfb_kernel<<<1, blk_n - k>>>(M, blk_n, k, T); // check res
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dlarfb");
+
+    for (int m = (k + 1); m < blk_m; m++) {
+
+      dtsqt2_dssrfb_row_kernel<<<1, blk_m - k>>>(M, blk_n, k, m); // check res
+      CHECK_ZERO_ERROR_RETURN(res, "Failed to compute row kernel");
+    }
+  }
+
+  res = cudaFree(&T);
+  CHECK_SUCCESS_RETURN(res);
+
+  return 0;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // KERNEL WRAPPERS
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -686,9 +818,7 @@ TileQR_house(cublasHandle_t *handle, Vector *in, Vector *out) {
     return 0;
 }
 
-
-
-__global__ void dgeqt2_kernel(Numeric *A, Numeric *T, int m, int n) {
+__global__ void dgeqt2_kernel_test(Numeric *A, Numeric *T, int m, int n) {
     cublasHandle_t handle;
     int res = cublasCreate(&handle);
 
@@ -698,7 +828,7 @@ __global__ void dgeqt2_kernel(Numeric *A, Numeric *T, int m, int n) {
 extern "C"
 int
 TileQR_dgeqt2(cublasHandle_t *handle, Matrix *A, Matrix *T) {    
-    dgeqt2_kernel<<<1, 1>>>(A->data_d, T->data_d, A->nr_rows, A->nr_cols);
+    dgeqt2_kernel_test<<<1, 1>>>(A->data_d, T->data_d, A->nr_rows, A->nr_cols);
     return 0;
 }
 
@@ -784,5 +914,3 @@ TileQR_cublasDgemm_mht(cublasDiagType_t diag,
     TileQR_cublasDgemm_mht_kernel<<<1, 1>>>(diag, m, n, k, alpha, A, lda, B, ldb, C, ldc);
     return 0;
 }
-
-
