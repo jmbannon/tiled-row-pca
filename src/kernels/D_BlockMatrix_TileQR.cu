@@ -671,8 +671,12 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
 __global__ void dgeqt2_kernel(Numeric *A, Numeric *T) {
     cublasHandle_t handle;
     int res = cublasCreate(&handle);
+    // check res
+    for (int i = 0; i < BLK_SIZE; i++) {
+      T[i] = 0;
+    }
 
-    dgeqt2(&handle, A, T, BLK_LEN, BLK_LEN);
+    res = dgeqt2(&handle, A, T, BLK_LEN, BLK_LEN);
 }
 
 /**
@@ -707,10 +711,18 @@ __global__ void dlarfb_kernel(Numeric *M, int lbdm, int k, Numeric *T) {
     int res = cublasCreate(&handle);
     // check res
 
+    printf("in kernel\n");
+
     Numeric *M_kk = &M[BLK_POS(k, k, lbdm)];
     Numeric *M_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
 
+    for (int i = 0; i < BLK_SIZE; i++) {
+      printf("%lf %lf\n", Q[i], Q_[i]);
+    }
+    printf("loc: %d %d", BLK_POS(k, k, lbdm), BLK_POS(k, k + 1 + threadIdx.x, lbdm));
+
     res = dlarfb(&handle, M_kn, M_kk, T, Q, Q_, BLK_LEN, BLK_LEN);
+    printf("after kernel %d\n", res);
     // check res
 }
 
@@ -755,7 +767,7 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM)
   Numeric *M;
   Numeric *T;
 
-  M = BlkM->data;
+  M = BlkM->data_d;
   int blk_m = BlkM->nr_blk_rows;
   int blk_n = BlkM->nr_blk_cols;
 
@@ -767,21 +779,26 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM)
 
   for (int k = 0; k < min_blk_d; k++) {
     Numeric *A_kk = &M[BLK_POS(k, k, blk_n)];
-
     dgeqt2_kernel<<<1,1>>>(A_kk, T); // check res
     CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dgeqt2");
 
-    dlarfb_kernel<<<1, blk_n - k>>>(M, blk_n, k, T); // check res
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dlarfb");
+    if (k != blk_n - 1) {
+      printf("here0?\n");
+      dlarfb_kernel<<<1, blk_n - k - 1>>>(M, blk_n, k, T); // check res
+      CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dlarfb");
+    }
 
     for (int m = (k + 1); m < blk_m; m++) {
-
-      dtsqt2_dssrfb_row_kernel<<<1, blk_m - k>>>(M, blk_n, k, m); // check res
+      dtsqt2_dssrfb_row_kernel<<<1, blk_m - k - 1>>>(M, blk_n, k, m); // check res
       CHECK_ZERO_ERROR_RETURN(res, "Failed to compute row kernel");
     }
   }
 
-  res = cudaFree(&T);
+  printf("here1?\n");
+  cudaDeviceSynchronize();
+
+  res = cudaFree(T);
+  printf("here2? %d\n", res);
   CHECK_SUCCESS_RETURN(res);
 
   return 0;

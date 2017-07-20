@@ -66,4 +66,10 @@ extern "C"
 int
 BlockMatrix_TileQR_single_thread(BlockMatrix *A);
 
+#ifdef __cplusplus
+extern "C"
+#endif
+int
+BlockMatrix_TileQR_multi_thread(BlockMatrix *A);
+
 #endif

@@ -4,7 +4,7 @@ include make.inc
 
 EXEC            = row-tile-pca
 TEST_EXEC       = test-row-tile-pca
-CC              = nvcc -m64
+CC              = nvcc -m64 -g -G --device-debug -lineinfo
 FCC             = gfortran
 
 # - Flags -------------------------------------------------------------
