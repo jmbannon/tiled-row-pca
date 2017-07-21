@@ -82,7 +82,7 @@ int Test_TileQR(int m, int n, int range, unsigned int seed)
 }
 
 int Test_TileQR_16_16() {
-    return Test_TileQR(4, 8, 4, 360);
+    return Test_TileQR(8, 8, 4, 360);
 }
 
 int Test_TileQR_1024_64() {
