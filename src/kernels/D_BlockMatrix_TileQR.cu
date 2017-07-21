@@ -253,10 +253,10 @@ __device__ int dgeqt2(cublasHandle_t *handle, Numeric *A, Numeric *T, int m, int
     A[diag_idx] = w[i];
   }
 
-  res = cudaFree(&w);
+  res = cudaFree(w);
   CHECK_SUCCESS_RETURN(res);
 
-  res = cudaFree(&beta);
+  res = cudaFree(beta);
   CHECK_SUCCESS_RETURN(res);
 
   return 0;
@@ -705,16 +705,16 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
     }
   }
 
-  res = cudaFree(&T);
+  res = cudaFree(T);
   CHECK_SUCCESS_RETURN(res);
 
-  res = cudaFree(&Rbind);
+  res = cudaFree(Rbind);
   CHECK_SUCCESS_RETURN(res);
 
-  res = cudaFree(&Q);
+  res = cudaFree(Q);
   CHECK_SUCCESS_RETURN(res);
 
-  res = cudaFree(&Q_);
+  res = cudaFree(Q_);
   CHECK_SUCCESS_RETURN(res);
 
   return 0;
@@ -774,27 +774,29 @@ __global__ void dlarfb_kernel(Numeric *M, int lbdm, int k, Numeric *T) {
     Numeric *M_kk = &M[BLK_POS(k, k, lbdm)];
     Numeric *M_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
 
-    printf("\n\na_kk %d,%d\n", k, k);
-    for (int i = 0; i < BLK_SIZE; i++) {
-      printf("%d,%d %lf\n", k, k, M_kk[i]);
-    }
-    printf("\n\na_kn %d,%d\n", k, k + 1 + threadIdx.x);
-    for (int i = 0; i < BLK_SIZE; i++) {
-      printf("%d,%d %lf\n", k, k + 1 + threadIdx.x, M_kn[i]);
-    }
-    printf("\n\nT\n");
-    for (int i = 0; i < BLK_SIZE; i++) {
-      printf("%lf\n", T[i]);
-    }
+    // printf("\n\na_kk %d,%d\n", k, k);
+    // for (int i = 0; i < BLK_SIZE; i++) {
+    //   printf("%d,%d %lf\n", k, k, M_kk[i]);
+    // }
+    // printf("\n\na_kn %d,%d\n", k, k + 1 + threadIdx.x);
+    // for (int i = 0; i < BLK_SIZE; i++) {
+    //   printf("%d,%d %lf\n", k, k + 1 + threadIdx.x, M_kn[i]);
+    // }
+    // printf("\n\nT\n");
+    // for (int i = 0; i < BLK_SIZE; i++) {
+    //   printf("%lf\n", T[i]);
+    // }
 
-
+    printf("dlarfb %d %d, %d %d\n", k, k, k, k + 1 + threadIdx.x);
     res = dlarfb(&handle, M_kn, M_kk, T, Q, Q_, BLK_LEN, BLK_LEN);
 
-    printf("\n\na_kn %d,%d\n", k, k + 1 + threadIdx.x);
-    for (int i = 0; i < BLK_SIZE; i++) {
-      printf("%d,%d %lf\n", k, k + 1 + threadIdx.x, M_kn[i]);
-    }
+    // printf("\n\na_kn %d,%d\n", k, k + 1 + threadIdx.x);
+    // for (int i = 0; i < BLK_SIZE; i++) {
+    //   printf("%d,%d %lf\n", k, k + 1 + threadIdx.x, M_kn[i]);
+    // }
     // check res
+
+    cublasDestroy(handle);
 }
 
 
@@ -817,15 +819,20 @@ __global__ void dgeqt2_dlarfb_row_kernel(Numeric *M, int lbdm, int k, int nr_blk
     // check res
 
     res = cudaMalloc(&T, BLK_SIZE_MEM);
+    for (int i = 0; i < BLK_SIZE; i++) {
+        T[i] = 0;
+    }
     // check res
 
     M_kk = &M[BLK_POS(k, k, lbdm)];
 
-    printf("\n\nM_kk %d %d\n", k, k);
-    for (int i = 0; i < BLK_SIZE; i++) {
-      printf("%lf\n", M_kk[i]);
-      T[i] = 0; // Must 0 lower-tri of T
-    }
+    // printf("\n\nM_kk %d %d\n", k, k);
+    // for (int i = 0; i < BLK_SIZE; i++) {
+    //   printf("%lf\n", M_kk[i]);
+    //   T[i] = 0; // Must 0 lower-tri of T
+    // }
+
+    printf("dgeqt2 %d %d\n", k, k);
 
     res = dgeqt2(&handle, M_kk, T, BLK_LEN, BLK_LEN);
     // check res
@@ -834,6 +841,8 @@ __global__ void dgeqt2_dlarfb_row_kernel(Numeric *M, int lbdm, int k, int nr_blk
       cudaDeviceSynchronize();
       dlarfb_kernel<<<1, nr_blk_cols - k - 1>>>(M, lbdm, k, T);
     }
+
+    cublasDestroy(handle);
 }
 
 __global__ void dssrfb_kernel(Numeric *M, int lbdm,
@@ -874,6 +883,8 @@ __global__ void dssrfb_kernel(Numeric *M, int lbdm,
   //   printf("%d%lf\n", threadIdx.x, X[i]);
   // }
 
+  printf("dssrfb %d %d, %d %d\n", k, k+1+threadIdx.x, m, k + 1 + threadIdx.x);
+
   res = dssrfb(&handle, A_kn, A_mn, V, T, X, BLK_SIZE, Y, BLK_SIZE, BLK_LEN); // check res
 
   cudaDeviceSynchronize();
@@ -886,6 +897,7 @@ __global__ void dssrfb_kernel(Numeric *M, int lbdm,
   // for (int i = 0; i < BLK_SIZE; i++) {
   //   printf("%d,%d %lf\n", m, k + 1 + threadIdx.x, A_mn[i]);
   // }
+  cublasDestroy(handle);
   
 }
 
@@ -915,6 +927,8 @@ __global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m, int
     Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
     Numeric *A_kk = &M[BLK_POS(k, k, lbdm)];
 
+    printf("dtsqt2 %d %d, %d %d\n", k, k, m, k);
+
     res = dtsqt2(&handle, A_kk, A_mk, T, Rbind, true, BLK_LEN);
     // check res
 
@@ -935,6 +949,8 @@ __global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m, int
       dssrfb_kernel<<<1, nr_blk_cols - k - 1>>>(M, lbdm, k, m, A_mk, T, BLK_LEN); // check res
       //CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dssrfb");
     }
+
+    cublasDestroy(handle);
 }
 
 extern "C"
@@ -950,11 +966,13 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM)
   int min_blk_d = blk_m > blk_n ? blk_n : blk_m;
 
   for (int k = 0; k < min_blk_d; k++) {
+    printf("k = %d\n", k);
     dgeqt2_dlarfb_row_kernel<<<1,1>>>(M, blk_n, k, blk_m, blk_n); // check res
     CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dgeqt2");
 
     cudaDeviceSynchronize();
     for (int m = (k + 1); m < blk_m; m++) {
+      printf("m = %d\n", m);
       dtsqt2_dssrfb_row_kernel<<<1, 1>>>(M, blk_n, k, m, blk_n); // check res
       CHECK_ZERO_ERROR_RETURN(res, "Failed to compute row kernel");
       cudaDeviceSynchronize();
