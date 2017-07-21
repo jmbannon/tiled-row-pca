@@ -71,9 +71,9 @@ int Test_TileQR(int m, int n, int range, unsigned int seed, bool multi_thread)
     res = BlockMatrix_copy_device_to_host(&A);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to copy block matrix from device to host");
 
-    BlockMatrix_print(&A);
-    printf("\n");
-    Matrix_print(&expected_output);
+    // BlockMatrix_print(&A);
+    // printf("\n");
+    // Matrix_print(&expected_output);
 
     bool equals = compare_r(&expected_output, &A);
 
@@ -90,9 +90,9 @@ int Test_TileQR(int m, int n, int range, unsigned int seed, bool multi_thread)
 }
 
 int Test_TileQR_16_16() {
-    int one = Test_TileQR(79, 29, 4, 360, false);
+    int one = Test_TileQR(1024, 64, 4, 360, false);
     //int two = Test_TileQR(12, 12, 4, 360, true);
-    int two = Test_TileQR(79, 29, 4, 360, true);
+    int two = Test_TileQR(1024, 64, 4, 360, true);
     return one == 0 && two == 0 ? 0 : 1;
 }
 

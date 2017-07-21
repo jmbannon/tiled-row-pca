@@ -22,13 +22,13 @@ void addTest(char *name,
 }
 
 void addAllTests() {
-	addTest("Test_BlockMatrix_column_sums", Test_BlockMatrix_column_sums);
-	addTest("Test_DistBlockMatrix_global_normalize", Test_DistBlockMatrix_normalize);
-	addTest("Test_BlockMatrixVector_sub", Test_BlockMatrixVector_sub);
-	addTest("Test_Matrix_copy_device_to_host", Test_Matrix_copy_device_to_host);
-	addTest("Test_BlockQROperationHouse", Test_BlockQROperationHouse);
-	addTest("Test_TileQR_dgeqt2", Test_TileQR_dgeqt2);
-	addTest("Test_TileQR_dgeqt2_rect", Test_TileQR_dgeqt2_rect);
+	// addTest("Test_BlockMatrix_column_sums", Test_BlockMatrix_column_sums);
+	// addTest("Test_DistBlockMatrix_global_normalize", Test_DistBlockMatrix_normalize);
+	// addTest("Test_BlockMatrixVector_sub", Test_BlockMatrixVector_sub);
+	// addTest("Test_Matrix_copy_device_to_host", Test_Matrix_copy_device_to_host);
+	// addTest("Test_BlockQROperationHouse", Test_BlockQROperationHouse);
+	// addTest("Test_TileQR_dgeqt2", Test_TileQR_dgeqt2);
+	// addTest("Test_TileQR_dgeqt2_rect", Test_TileQR_dgeqt2_rect);
 	addTest("Test_TileQR_16_16", Test_TileQR_16_16);
 	// addTest("Test_TileQR_71_29", Test_TileQR_71_29);
 	// addTest("Test_TileQR_1024_64", Test_TileQR_1024_64);
