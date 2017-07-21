@@ -131,8 +131,8 @@ int Test_TileQR(int m, int n, int range, unsigned int seed)
 }
 
 int Test_TileQR_16_16() {
-    int one = Test_TileQR(8, 12, 4, 360);
-    int two = Test_TileQR_multi(8, 12, 4, 360);
+    int one = Test_TileQR(12, 12, 4, 360);
+    int two = Test_TileQR_multi(12, 12, 4, 360);
     return one == 0 && two == 0 ? 0 : 1;
 }
 
