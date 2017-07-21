@@ -90,9 +90,10 @@ int Test_TileQR(int m, int n, int range, unsigned int seed, bool multi_thread)
 }
 
 int Test_TileQR_16_16() {
-    int one = Test_TileQR(1024, 64, 4, 360, false);
+    //int one = Test_TileQR(1024, 64, 4, 360, false);
     //int two = Test_TileQR(12, 12, 4, 360, true);
-    int two = Test_TileQR(1024, 64, 4, 360, true);
+    int one = 0;
+    int two = Test_TileQR(2097, 2057, 4, 360, true);
     return one == 0 && two == 0 ? 0 : 1;
 }
 
