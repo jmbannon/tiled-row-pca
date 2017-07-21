@@ -32,7 +32,7 @@ bool compare_r(Matrix *a, BlockMatrix *b) {
     return true;
 }
 
-int Test_TileQR(int m, int n, int range, unsigned int seed)
+int Test_TileQR_multi(int m, int n, int range, unsigned int seed)
 {
     int res;
 
@@ -81,8 +81,59 @@ int Test_TileQR(int m, int n, int range, unsigned int seed)
     return equals ? 0 : 1;
 }
 
+int Test_TileQR(int m, int n, int range, unsigned int seed)
+{
+    int res;
+
+    BlockMatrix A;
+    Matrix expected_output;
+
+    res = BlockMatrix_init_rand(&A, m, n, range, seed);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to init rand block matrix");
+
+    res = Matrix_init(&expected_output, m, n);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to init constant matrix");
+
+    res = Matrix_copy_BlockMatrix(&expected_output, &A);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to copy BlockMatrix into Matrix");
+
+    res = Matrix_qr_r(&expected_output);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to compute lapack QR on matrix");
+
+    res = BlockMatrix_init_device(&A);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to init block matrix on device");
+
+    res = BlockMatrix_copy_host_to_device(&A);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to copy block matrix from host to device");
+
+    res = BlockMatrix_TileQR_single_thread(&A);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to compute TileQR on block matrix");
+
+    res = BlockMatrix_copy_device_to_host(&A);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to copy block matrix from device to host");
+
+    BlockMatrix_print(&A);
+    printf("\n");
+    Matrix_print(&expected_output);
+
+    bool equals = compare_r(&expected_output, &A);
+
+    res = BlockMatrix_free(&A);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to free block matrix from host");
+
+    res = BlockMatrix_free_device(&A);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to free block matrix from device");
+
+    res = Matrix_free(&expected_output);
+    CHECK_ZERO_ERROR_RETURN(res, "Failed to free matrix from host");
+
+    return equals ? 0 : 1;
+}
+
 int Test_TileQR_16_16() {
-    return Test_TileQR(8, 8, 4, 360);
+    int one = Test_TileQR(8, 12, 4, 360);
+    int two = Test_TileQR_multi(8, 12, 4, 360);
+    return one == 0 && two == 0 ? 0 : 1;
 }
 
 int Test_TileQR_1024_64() {
