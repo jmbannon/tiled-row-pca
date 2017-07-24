@@ -71,10 +71,6 @@ int Test_TileQR(int m, int n, int range, unsigned int seed, bool multi_thread)
     res = BlockMatrix_copy_device_to_host(&A);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to copy block matrix from device to host");
 
-    // BlockMatrix_print(&A);
-    // printf("\n");
-    // Matrix_print(&expected_output);
-
     bool equals = compare_r(&expected_output, &A);
 
     res = BlockMatrix_free(&A);
