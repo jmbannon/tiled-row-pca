@@ -8,9 +8,18 @@ int Test_BlockQROperationHouse();
 int Test_Matrix_copy_device_to_host();
 int Test_TileQR_dgeqt2();
 int Test_TileQR_dgeqt2_rect();
-int Test_TileQR_16_16();
-int Test_TileQR_1024_64();
-int Test_TileQR_71_29();
+
+// Single-thread tile qr
+int Test_TileQR_17_21_st();
+int Test_TileQR_1027_67_st();
+int Test_TileQR_67_1027_st();
+int Test_TileQR_71_29_st();
+
+// Multi-thread tile qr
+int Test_TileQR_17_21_mt();
+int Test_TileQR_1027_67_mt();
+int Test_TileQR_67_1027_mt();
+int Test_TileQR_71_29_mt();
 
 int TestAll();
 

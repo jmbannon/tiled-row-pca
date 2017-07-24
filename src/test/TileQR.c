@@ -89,18 +89,38 @@ int Test_TileQR(int m, int n, int range, unsigned int seed, bool multi_thread)
     return equals ? 0 : 1;
 }
 
-int Test_TileQR_16_16() {
-    //int one = Test_TileQR(1024, 64, 4, 360, false);
-    //int two = Test_TileQR(12, 12, 4, 360, true);
-    int one = 0;
-    int two = Test_TileQR(2097, 2057, 4, 360, true);
-    return one == 0 && two == 0 ? 0 : 1;
+int Test_TileQR_17_21_st() {
+    return Test_TileQR(17, 21, 4, 360, false);
 }
 
-int Test_TileQR_1024_64() {
-    return Test_TileQR(1024, 64, 500, 253, true);
+int Test_TileQR_1027_67_st() {
+    return Test_TileQR(1027, 67, 500, 253, false);
 }
 
-int Test_TileQR_71_29() {
+int Test_TileQR_67_1027_st() {
+    return Test_TileQR(67, 1027, 500, 253, false);
+}
+
+int Test_TileQR_1024_64_st() {
+    return Test_TileQR(1024, 64, 500, 253, false);
+}
+
+int Test_TileQR_71_29_st() {
+    return Test_TileQR(79, 29, 500, 666, false);
+}
+
+int Test_TileQR_17_21_mt() {
+    return Test_TileQR(17, 21, 4, 360, true);
+}
+
+int Test_TileQR_1027_67_mt() {
+    return Test_TileQR(1027, 67, 500, 253, true);
+}
+
+int Test_TileQR_67_1027_mt() {
+    return Test_TileQR(67, 1027, 500, 253, true);
+}
+
+int Test_TileQR_71_29_mt() {
     return Test_TileQR(79, 29, 500, 666, true);
 }
