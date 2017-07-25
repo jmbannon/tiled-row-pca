@@ -4,6 +4,7 @@ include make.inc
 
 EXEC            = row-tile-pca
 TEST_EXEC       = test-row-tile-pca
+PERF_EXEC       = perf-row-tile-pca
 CC              = nvcc -m64 -g -G --device-debug -lineinfo
 FCC             = gfortran
 
@@ -27,6 +28,7 @@ DEVICE_FLAGS    = ${SHARED_FLAGS} -arch=${CUDA_ARCH} ${CUDA_INCL}
 
 # - SRC ----------------------------------------------------------------
 
+PERF_SRC        = $(wildcard src/perf/*.c)
 TEST_SRC        = $(wildcard src/test/*.c)
 MAIN_SRC        = $(wildcard src/main/*.c)
 DEVICE_SRC      = $(wildcard src/kernels/*.cu src/device/*.cu)
@@ -34,19 +36,26 @@ HOST_SRC        = $(wildcard src/*.c)
 
 # - Make ---------------------------------------------------------------
 
-all: main test clean
-
 main: gpu_compile cpu_compile main_compile
 	$(CC) -o $(EXEC) *.o $(HOST_FLAGS) ${DEVICE_FLAGS}
+	rm -f *.o
 
 test: gpu_compile cpu_compile test_compile
 	$(CC) -o $(TEST_EXEC) *.o $(HOST_FLAGS) ${DEVICE_FLAGS}
+	rm -f *.o
+
+perf: gpu_compile cpu_compile perf_compile
+	$(CC) -o $(PERF_EXEC) *.o $(HOST_FLAGS) ${DEVICE_FLAGS}
+	rm -f *.o
 
 main_compile:
 	$(CC) -c ${DEVICE_FLAGS} $(HOST_FLAGS) $(MAIN_SRC)
 
 test_compile:
 	$(CC) -c $(HOST_FLAGS) $(TEST_SRC)
+
+perf_compile:
+	$(CC) -c $(HOST_FLAGS) $(PERF_SRC)
 
 cpu_compile:
 	$(CC) -c $(HOST_FLAGS) $(HOST_SRC)

@@ -871,6 +871,7 @@ int
 BlockMatrix_TileQR_single_thread(BlockMatrix *A)
 {
   TileQR_wrapper<<<1, 1>>>(A->data_d, A->nr_blk_rows, A->nr_blk_cols);
+  cudaDeviceSynchronize();
   return 0;
 }
 

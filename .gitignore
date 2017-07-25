@@ -3,6 +3,7 @@
 lapack_cwrapper/
 row-tile-pca
 test-row-tile-pca
+perf-row-tile-pca
 make.inc
 *.sh
 core

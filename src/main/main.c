@@ -4,6 +4,7 @@
 #include "../BlockMatrixVectorOperations.h"
 #include "../DistBlockMatrix.h"
 #include "../DistBlockMatrixOperations.h"
+#include "../TileQR_Operations.h"
 #include "../Timer.h"
 #include "../error.h"
 #include <cublas_v2.h>
@@ -90,6 +91,10 @@ int main(int argc, char** argv) {
 
     // Center local data around origin
     res = BlockMatrixVector_device_sub(local_mat, &local_col_means);
+    CHECK_ZERO_RETURN(res);
+
+    // Perform Tile QR locally
+    res = BlockMatrix_TileQR_multi_thread(local_mat);
     CHECK_ZERO_RETURN(res);
 
     // TODO: Free memory
