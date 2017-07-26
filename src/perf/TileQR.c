@@ -8,6 +8,7 @@
 #include <cuda.h>
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
+#include <cuda_profiler_api.h>
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -28,12 +29,16 @@ int TileQR(int m, int n, double *runtime_ms)
     res = BlockMatrix_copy_host_to_device(&A);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to copy block matrix from host to device");
 
+    cudaProfilerStart();
+
     Timer_start(&t);
     res = BlockMatrix_TileQR_multi_thread(&A);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to compute TileQR on block matrix");
     Timer_end(&t);
 
     *runtime_ms = Timer_dur_sec(&t);
+
+    cudaProfilerStop();
 
     res = BlockMatrix_free(&A);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to free block matrix from host");

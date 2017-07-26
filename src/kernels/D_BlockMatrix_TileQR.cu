@@ -552,7 +552,6 @@ __device__ int dlarfb(cublasHandle_t *handle, Numeric *A, Numeric *Y, Numeric *T
     res = cublasDgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_N, m, n, m, &alpha, Q, m, A, m, &zero, Q_, m);
   #endif
   CHECK_CUBLAS_RETURN(res, "Failed to compute Q' = t(Q) * A")
-  cudaDeviceSynchronize();
 
   #if FLOAT_NUMERIC
     res = cublasScopy(*handle, m * n, Q_, 1, A, 1);
@@ -710,11 +709,9 @@ __global__ void dlarfb_kernel(Numeric *M, int lbdm, int k, Numeric *T) {
     Numeric *M_kk = &M[BLK_POS(k, k, lbdm)];
     Numeric *M_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
 
-    // printf("dlarfb %d %d, %d %d\n", k, k, k, k + 1 + threadIdx.x);
     res = dlarfb(&handle, M_kn, M_kk, T, Q, Q_, BLK_LEN, BLK_LEN);
     // check res
 
-    cudaDeviceSynchronize();
     cudaFree(Q);
     cudaFree(Q_);
 
@@ -750,7 +747,6 @@ __global__ void dgeqt2_dlarfb_row_kernel(Numeric *M, int lbdm, int k, int nr_blk
     // check res
 
     if (k < nr_blk_cols - 1) {
-      cudaDeviceSynchronize();
       dlarfb_kernel<<<1, nr_blk_cols - k - 1>>>(M, lbdm, k, T);
     }
 
@@ -779,8 +775,6 @@ __global__ void dssrfb_kernel(Numeric *M, int lbdm,
   Numeric *A_mn = &M[BLK_POS(m, k + 1 + threadIdx.x, lbdm)];
 
   res = dssrfb(&handle, A_kn, A_mn, V, T, X, BLK_LEN, Y, BLK_LEN, BLK_LEN); // check res
-
-  cudaDeviceSynchronize();
 
   cudaFree(X);
   cudaFree(Y);
@@ -829,31 +823,91 @@ __global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m, int
     cublasDestroy(handle);
 }
 
+// extern "C"
+// int
+// BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM)
+// {    
+//   int res = 0;
+//   Numeric *M = BlkM->data_d;
+
+//   int blk_m = BlkM->nr_blk_rows;
+//   int blk_n = BlkM->nr_blk_cols;
+
+//   int min_blk_d = blk_m > blk_n ? blk_n : blk_m;
+
+//   for (int k = 0; k < min_blk_d; k++) {
+//     dgeqt2_dlarfb_row_kernel<<<1,1>>>(M, blk_n, k, blk_m, blk_n); // check res
+//     CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dgeqt2");
+
+//     cudaDeviceSynchronize();
+//     for (int m = (k + 1); m < blk_m; m++) {
+//       dtsqt2_dssrfb_row_kernel<<<1, 1>>>(M, blk_n, k, m, blk_n); // check res
+//       CHECK_ZERO_ERROR_RETURN(res, "Failed to compute row kernel");
+//       cudaDeviceSynchronize();
+//     }
+//   }
+
+//   cudaDeviceSynchronize();
+//   return 0;
+// }
+
 extern "C"
 int
 BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM)
 {    
-  int res = 0;
-  Numeric *M = BlkM->data_d;
+  bool dgeqt2_running = true;
+  bool dlarfb_running = true;
+  bool ran_dgeqt2 = false;
 
   int blk_m = BlkM->nr_blk_rows;
   int blk_n = BlkM->nr_blk_cols;
 
   int min_blk_d = blk_m > blk_n ? blk_n : blk_m;
-
-  for (int k = 0; k < min_blk_d; k++) {
-    dgeqt2_dlarfb_row_kernel<<<1,1>>>(M, blk_n, k, blk_m, blk_n); // check res
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dgeqt2");
-
-    cudaDeviceSynchronize();
-    for (int m = (k + 1); m < blk_m; m++) {
-      dtsqt2_dssrfb_row_kernel<<<1, 1>>>(M, blk_n, k, m, blk_n); // check res
-      CHECK_ZERO_ERROR_RETURN(res, "Failed to compute row kernel");
-      cudaDeviceSynchronize();
-    }
-  }
+  Numeric *M = BlkM->data_d;
+  
+  int i = 0;
+  int j;
+  int j_start = 0;
+  int *dl = (int *)calloc(min_blk_d, sizeof(int));
+  
+  dgeqt2_dlarfb_row_kernel<<<1,1>>>(M, blk_n, 0, blk_m, blk_n);
+  dl[i] = i + 1;
+  ++i;
 
   cudaDeviceSynchronize();
+  
+  while (dgeqt2_running || dlarfb_running) {
+    if (i < min_blk_d && i < dl[i - 1]) {
+      dgeqt2_dlarfb_row_kernel<<<1,1>>>(M, blk_n, i, blk_m, blk_n); // check res
+      ran_dgeqt2 = true;
+    } else if (i == min_blk_d) {
+      dgeqt2_running = false;
+    }
+
+    j = j_start;
+    while (dl[j] != 0 && j < min_blk_d) {
+      if (dl[j] < blk_m) {
+        dtsqt2_dssrfb_row_kernel<<<1, 1>>>(M, blk_n, j, dl[j], blk_n);
+        dl[j] += 1;
+      } else if (dl[j] == blk_m) {
+        j_start = j + 1;
+      }
+      ++j;
+    }
+
+    if (j_start == min_blk_d) {
+      dlarfb_running = false;
+    }
+
+    if (ran_dgeqt2) {
+      dl[i] = i + 1;
+      ++i;
+      ran_dgeqt2 = false;
+    }
+
+    cudaDeviceSynchronize();
+  }
+
   return 0;
 }
 
