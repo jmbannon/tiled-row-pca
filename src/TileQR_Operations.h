@@ -24,31 +24,6 @@ extern "C"
 int
 TileQR_dgeqt2(cublasHandle_t *handle, Matrix *A, Matrix *T);
 
-
-
-#ifdef __cplusplus
-extern "C"
-#endif
-int
-TileQR_cublasDgemm_hmn(cublasDiagType_t diag,
-                       int m, int n, int k,
-                       const Numeric alpha,
-                       const Numeric *A, int lda,
-                       const Numeric *B, int ldb,
-                       Numeric *C, int ldc);
-
-
-#ifdef __cplusplus
-extern "C"
-#endif
-int
-TileQR_cublasDgemm_mht(cublasDiagType_t diag,
-                       int m, int n, int k,
-                       const Numeric alpha,
-                       const Numeric *A, int lda,
-                       const Numeric *B, int ldb,
-                       Numeric *C, int ldc);
-
 #ifdef __cplusplus
 extern "C"
 #endif

@@ -502,107 +502,6 @@ __device__ int dssrfb(Numeric *A_kj,
 // DLAFRB
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-/**
- * Multiplies a m-by-k Hessianberg matrix with a k-by-n matrix.
- * Multiplies its triangle portion using optimized triangle-matrix multiply.
- *
- * C = alpha * H * B
- *
- * @param handle cuBLAS handle
- * @param diag Whether the diagonal in the Hessian is Unit (1's) or Non-Unit.
- * @param m Rows of Hessianberg matrix H and C
- * @param n Cols of B and C
- * @param k Cols of Hessianberg matrix H and rows of B
- * @param alpha Scalar
- * @param A m-by-k Hessianberg matrix
- * @param B k-by-n Matrix
- * @param C m-by-n Matrix
- */
-__device__ int cublasDgemm_hmn(cublasHandle_t handle,
-                               cublasDiagType_t diag,
-                               int m, int n, int k,
-                               const Numeric alpha,
-                               const Numeric *A, int lda,
-                               const Numeric *B, int ldb,
-                               Numeric *C, int ldc)
-{
-
-  int res;
-  Numeric zero = 0.0;
-
-  // Multiply the triangular portion
-  #if FLOAT_NUMERIC
-    res = cublasStrmm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, diag, k, n, &alpha, A, lda, B, ldb, C, ldc);
-  #else
-    res = cublasDtrmm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, diag, k, n, &alpha, A, lda, B, ldb, C, ldc);
-  #endif 
-  CHECK_CUBLAS_RETURN(res, "Triangle portion of Hessianberg matrix multiply failed");
-
-  if (m != k) {
-    // Multiply the rectangular portion if the Hessianberg matrix H is not a triangular matrix
-    #if FLOAT_NUMERIC
-      res = cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m - k, n, k, &alpha, &A[k], lda, B, ldb, &zero, &C[k], ldc);
-    #else
-      res = cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m - k, n, k, &alpha, &A[k], lda, B, ldb, &zero, &C[k], ldc);
-    #endif
-    CHECK_CUBLAS_RETURN(res, "Rectangle portion of Hessianberg matrix multiply failed");
-  }
-  return 0;
-}
-
-/**
- * Multiplies a m-by-k matrix with a n-by-k transposed Hessianberg matrix.
- * Multiplies its triangle portion using optimized triangle-matrix multiply.
- *
- * C = alpha * A * t(H)
- *
- * @param handle cuBLAS handle
- * @param diag Whether the diagonal in the Hessian is Unit (1's) or Non-Unit.
- * @param m Rows of matrix A and C
- * @param n Cols of t(H) and C (rows of H)
- * @param k Cols of A and rows of t(H) (or cols of H)
- * @param alpha Scalar
- * @param A m-by-k Matrix
- * @param H n-by-k Hessianberg matrix to be multiplied transposed
- * @param C m-by-n Matrix
- */
-__device__ int cublasDgemm_mht(cublasHandle_t handle,
-                               cublasDiagType_t diag,
-                               int m, int n, int k,
-                               const Numeric alpha,
-                               const Numeric *A, int lda,
-                               const Numeric *B, int ldb,
-                               Numeric *C, int ldc)
-{
-  int res;
-  Numeric zero = 0.0;
-
-  // Multiply the triangular portion
-  #if FLOAT_NUMERIC
-    res = cublasStrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, diag, m, k, &alpha, B, ldb, A, lda, C, ldc);
-  #else
-    res = cublasDtrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, diag, m, k, &alpha, B, ldb, A, lda, C, ldc);
-  #endif 
-  CHECK_CUBLAS_RETURN(res, "Triangle portion of Hessianberg matrix multiply failed");
-  cudaDeviceSynchronize();
-
-  if (n != k) {
-    // Multiply the rectangular portion if the Hessianberg matrix H is not a triangular matrix
-    int C_rectangle_idx = MAT_POS(0, k, ldc);
-    #if FLOAT_NUMERIC
-      res = cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_T, m, n, k, &alpha, A, lda, &B[k], ldb, &zero, &C[C_rectangle_idx], ldc);
-    #else
-      res = cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_T, m, n, k, &alpha, A, lda, &B[k], ldb, &zero, &C[C_rectangle_idx], ldc);
-    #endif
-    CHECK_CUBLAS_RETURN(res, "Rectangle portion of Hessianberg matrix multiply failed");
-    cudaDeviceSynchronize();
-  }
-
-  return 0;
-}
-
-
 /**
   * Computes Q = I + (Y * T * t(Y))
   *
@@ -640,14 +539,13 @@ __device__ int house_qr_q(Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_)
   *                              = t(I + (Y * T * t(Y))) * A
   * where Q is from a diagonal tile P, where P = QR, and A is an adjacent tile to the right of P.
   *
-  * @param handle cuBLAS handle
   * @param A m-by-n matrix to multiply and override. Adjacent to the source tile of Q.
   * @param Y m-by-n Hessianberg matrix holding householder vectors.
   * @param T n-by-n matrix.
   * @param Q m-by-m matrix to store Q.
   * @param Q_ m-by-n work matrix.
   */
-__device__ int dlarfb(cublasHandle_t *handle, Numeric *A, Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_)
+__device__ int dlarfb(Numeric *A, Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_)
 {
   int res;
 
@@ -718,7 +616,7 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
 
       Numeric *A_kn = &A[BLK_POS(k, n, blk_n)];
 
-      res = dlarfb(&handle, A_kn, A_kk, T, Q, Q_);
+      res = dlarfb(A_kn, A_kk, T, Q, Q_);
       CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dlarfb");
     }
 
@@ -763,17 +661,6 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
 // Parallel QR
 //////////////////////
 
-/**
-  * Multiplies a matrix A s.t. A = t(Q) * A
-  *                              = t(I + (Y * T * t(Y))) * A
-  * where Q is from a diagonal tile P, where P = QR, and A is an adjacent tile to the right of P.
-  *
-  * @param M Pointer to beginning of BlockMatrix M
-  * @param i Block row to perform on
-  * @param T n-by-n matrix
-  *
-  */
-
   /**
   * Multiplies a matrix A s.t. A = t(Q) * A
   *                              = t(I + (Y * T * t(Y))) * A
@@ -783,43 +670,17 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
   * @param A m-by-n matrix to multiply and override. Adjacent to the source tile of Q.
   * @param Y m-by-n Hessianberg matrix holding householder vectors.
   * @param T n-by-n matrix.
-  * @param Q m-by-m matrix to store Q.
-  * @param Q_ m-by-n work matrix.
   *
   * res = dlarfb(&handle, A_kn, A_kk, T, Q, Q_, BLK_LEN, BLK_LEN);
   */
 __global__ void dlarfb_kernel(Numeric *M, int lbdm, int k, Numeric *T) {
-    Numeric *Q;
-    Numeric *Q_;
-    cublasHandle_t handle;
-    int res = cublasCreate(&handle);
-    if (res != 0) {
-      printf("failed!!!\n");
-    }
-    // check res
-
-    res = cudaMalloc(&Q, BLK_SIZE_MEM);
-    if (res != 0) {
-      printf("failed!!!\n");
-    }
-    // check res
-
-    res = cudaMalloc(&Q_, BLK_SIZE_MEM);
-    if (res != 0) {
-      printf("failed!!!\n");
-    }
-    //check res
+    Numeric Q[BLK_SIZE];
+    Numeric Q_[BLK_SIZE];
 
     Numeric *M_kk = &M[BLK_POS(k, k, lbdm)];
     Numeric *M_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
 
-    res = dlarfb(&handle, M_kn, M_kk, T, Q, Q_);
-    // check res
-
-    cudaFree(Q);
-    cudaFree(Q_);
-
-    cublasDestroy(handle);
+    dlarfb(M_kn, M_kk, T, Q, Q_);
 }
 
 
@@ -1068,62 +929,5 @@ TileQR_house_qr_q(Matrix *Y,
                   int m, int n)
 {    
     TileQR_house_qr_q_kernel<<<1, 1>>>(Y->data_d, T->data_d, Q->data_d, Q_->data_d, m, n);
-    return 0;
-}
-
-
-// Wrapper kernel to cublasDgemm_hmn. Use only for testing.
-__global__ void TileQR_cublasDgemm_hmn_kernel(cublasDiagType_t diag,
-                                              int m, int n, int k,
-                                              const Numeric alpha,
-                                              const Numeric *A, int lda,
-                                              const Numeric *B, int ldb,
-                                              Numeric *C, int ldc)
-{
-    cublasHandle_t handle;
-    int res = cublasCreate(&handle);
-
-    cublasDgemm_hmn(handle, diag, m, n, k, alpha, A, lda, B, ldb, C, ldc);
-}
-
-// Wrapper function to single-threaded cublasDgemm_hmn kernel. Use only for testing.
-extern "C"
-int
-TileQR_cublasDgemm_hmn(cublasDiagType_t diag,
-                       int m, int n, int k,
-                       const Numeric alpha,
-                       const Numeric *A, int lda,
-                       const Numeric *B, int ldb,
-                       Numeric *C, int ldc)
-{    
-    TileQR_cublasDgemm_hmn_kernel<<<1, 1>>>(diag, m, n, k, alpha, A, lda, B, ldb, C, ldc);
-    return 0;
-}
-
-// Wrapper kernel to cublasDgemm_mht. Use only for testing.
-__global__ void TileQR_cublasDgemm_mht_kernel(cublasDiagType_t diag,
-                                              int m, int n, int k,
-                                              const Numeric alpha,
-                                              const Numeric *A, int lda,
-                                              const Numeric *B, int ldb,
-                                              Numeric *C, int ldc)
-{
-    cublasHandle_t handle;
-    int res = cublasCreate(&handle);
-
-    cublasDgemm_mht(handle, diag, m, n, k, alpha, A, lda, B, ldb, C, ldc);
-}
-
-// Wrapper function to single-threaded cublasDgemm_mht kernel. Use only for testing.
-extern "C"
-int
-TileQR_cublasDgemm_mht(cublasDiagType_t diag,
-                       int m, int n, int k,
-                       const Numeric alpha,
-                       const Numeric *A, int lda,
-                       const Numeric *B, int ldb,
-                       Numeric *C, int ldc)
-{    
-    TileQR_cublasDgemm_mht_kernel<<<1, 1>>>(diag, m, n, k, alpha, A, lda, B, ldb, C, ldc);
     return 0;
 }
