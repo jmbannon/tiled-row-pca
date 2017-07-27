@@ -35,6 +35,31 @@ __device__ void trmm1(const Numeric alpha,
   }
 }
 
+// res = cublasStrmm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, diag, k, n, &alpha, A, lda, B, ldb, C, ldc);
+__device__ void trmm2(const Numeric alpha,
+                      const Numeric *A, int lda,
+                      const Numeric *B, int ldb,
+                      Numeric *C, int ldc) {
+  int c_idx;
+
+  #pragma unroll
+  for (int i = 0; i < BLK_LEN; i++) {
+
+    #pragma unroll
+    for (int j = 0; j < BLK_LEN; j++) {
+
+      c_idx = MAT_POS(i, j, ldc);
+      C[c_idx] = B[MAT_POS(i, j, ldb)];
+
+      for (int k = 0; k < i; k++) {
+          C[c_idx] += A[MAT_POS(i, k, lda)] * B[MAT_POS(k, j, ldb)];
+      }
+
+      C[c_idx] *= alpha;
+    }
+  }
+}
+
 
 __device__ void norm(int n, const Numeric *x, Numeric *result) {
   *result = 0;
@@ -552,7 +577,7 @@ __device__ int cublasDgemm_mht(cublasHandle_t handle,
 {
   int res;
   Numeric zero = 0.0;
-  
+
   // Multiply the triangular portion
   #if FLOAT_NUMERIC
     res = cublasStrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, diag, m, k, &alpha, B, ldb, A, lda, C, ldc);
@@ -587,28 +612,23 @@ __device__ int cublasDgemm_mht(cublasHandle_t handle,
   * @param Q_ m-by-n work matrix to store Y * T
   * @return Q m-by-m output matrix
   */
-__device__ int house_qr_q(cublasHandle_t *handle, Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_, int m, int n)
+__device__ int house_qr_q(Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_)
 {
-    int res;
+    // int res;
     Numeric alpha = 1.0;
     
     // Calculates Q' = Y * T
-    res = cublasDgemm_hmn(*handle, CUBLAS_DIAG_UNIT, m, n, n, alpha, Y, m, T, n, Q_, m);
-    CHECK_CUBLAS_RETURN(res, "Failed to compute Q' = Y * T");
-    cudaDeviceSynchronize();
+    trmm2(alpha, Y, BLK_LEN, T, BLK_LEN, Q_, BLK_LEN);
 
     // Calculates Q = Q' * t(Y)
     //              = Y * T * t(Y)
-    trmm1(alpha, Q_, m, Y, m, Q, m);
-
-    // res = cublasDgemm_mht(*handle, CUBLAS_DIAG_UNIT, m, m, n, alpha, Q_, m, Y, m, Q, m);
-    // CHECK_CUBLAS_RETURN(res, "Failed to compute Q = Q' * t(Y)");
-    // cudaDeviceSynchronize();
+    trmm1(alpha, Q_, BLK_LEN, Y, BLK_LEN, Q, BLK_LEN);
 
     // Calculates Q = I + Q
     //              = I + (Y * T * t(Y))
-    for (int i = 0; i < m; i++) {
-      Q[MAT_POS(i, i, m)] += 1.0;
+    #pragma unroll
+    for (int i = 0; i < BLK_LEN; i++) {
+      Q[MAT_POS(i, i, BLK_LEN)] += 1.0;
     }
 
     return 0;
@@ -631,7 +651,7 @@ __device__ int dlarfb(cublasHandle_t *handle, Numeric *A, Numeric *Y, Numeric *T
 {
   int res;
 
-  res = house_qr_q(handle, Y, T, Q, Q_, BLK_LEN, BLK_LEN);
+  res = house_qr_q(Y, T, Q, Q_);
   CHECK_ZERO_ERROR_RETURN(res, "Failed to compute house_qr_q");
 
   const Numeric zero = 0.0;
@@ -1035,10 +1055,7 @@ __global__ void TileQR_house_qr_q_kernel(Numeric *Y,
                                          Numeric *Q_,
                                          int m, int n)
 {
-    cublasHandle_t handle;
-    int res = cublasCreate(&handle);
-
-    house_qr_q(&handle, Y, T, Q, Q_, m, n);
+    house_qr_q(Y, T, Q, Q_);
 }
 
 // Wrapper function to single-threaded cublasDgemm_hmn kernel. Use only for testing.
