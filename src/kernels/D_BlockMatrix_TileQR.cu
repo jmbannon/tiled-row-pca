@@ -10,6 +10,32 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+// cublasStrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, diag, m, k, &alpha, B, ldb, A, lda, C, ldc);
+__device__ void trmm1(const Numeric alpha,
+                      const Numeric *A, int lda,
+                      const Numeric *B, int ldb,
+                      Numeric *C, int ldc) {
+  int c_idx;
+
+  #pragma unroll
+  for (int i = 0; i < BLK_LEN; i++) {
+
+    #pragma unroll
+    for (int j = 0; j < BLK_LEN; j++) {
+
+      c_idx = MAT_POS(i, j, ldc);
+      C[c_idx] = A[MAT_POS(i, j, lda)];
+
+      for (int k = 0; k < j; k++) {
+          C[c_idx] += A[MAT_POS(i, k, lda)] * B[MAT_POS(j, k, ldb)];
+      }
+
+      C[c_idx] *= alpha;
+    }
+  }
+}
+
+
 __device__ void norm(int n, const Numeric *x, Numeric *result) {
   *result = 0;
   for (int i = 0; i < n; i++) {
@@ -479,6 +505,7 @@ __device__ int cublasDgemm_hmn(cublasHandle_t handle,
 
   int res;
   Numeric zero = 0.0;
+
   // Multiply the triangular portion
   #if FLOAT_NUMERIC
     res = cublasStrmm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, diag, k, n, &alpha, A, lda, B, ldb, C, ldc);
@@ -525,6 +552,7 @@ __device__ int cublasDgemm_mht(cublasHandle_t handle,
 {
   int res;
   Numeric zero = 0.0;
+  
   // Multiply the triangular portion
   #if FLOAT_NUMERIC
     res = cublasStrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, diag, m, k, &alpha, B, ldb, A, lda, C, ldc);
@@ -571,9 +599,11 @@ __device__ int house_qr_q(cublasHandle_t *handle, Numeric *Y, Numeric *T, Numeri
 
     // Calculates Q = Q' * t(Y)
     //              = Y * T * t(Y)
-    res = cublasDgemm_mht(*handle, CUBLAS_DIAG_UNIT, m, m, n, alpha, Q_, m, Y, m, Q, m);
-    CHECK_CUBLAS_RETURN(res, "Failed to compute Q = Q' * t(Y)");
-    cudaDeviceSynchronize();
+    trmm1(alpha, Q_, m, Y, m, Q, m);
+
+    // res = cublasDgemm_mht(*handle, CUBLAS_DIAG_UNIT, m, m, n, alpha, Q_, m, Y, m, Q, m);
+    // CHECK_CUBLAS_RETURN(res, "Failed to compute Q = Q' * t(Y)");
+    // cudaDeviceSynchronize();
 
     // Calculates Q = I + Q
     //              = I + (Y * T * t(Y))
