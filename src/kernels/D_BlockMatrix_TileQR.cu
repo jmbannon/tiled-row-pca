@@ -219,12 +219,9 @@ __device__ int house_qr(cublasHandle_t *handle, Numeric *A, Numeric *beta, Numer
 
     // Copies householder vector into lower triangular portion of A
     if (store_house && j < m) {
-      #if FLOAT_NUMERIC
-        res = cublasScopy(*handle, m - j - 1, &v[j + 1], 1, &A[pos + 1], 1);
-      #else
-        res = cublasDcopy(*handle, m - j - 1, &v[j + 1], 1, &A[pos + 1], 1);
-      #endif
-      CHECK_CUBLAS_RETURN(res, "Failed to copy householder vector into lower-triangular portion of A");
+      for (int i = 1; i < m - j; i++) {
+        A[pos + i] = v[j + i];
+      }
     }
   }
 
