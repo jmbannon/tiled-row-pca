@@ -10,6 +10,79 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+__device__ void gemm_blk(const Numeric alpha,
+                         const Numeric *A, int lda,
+                         const Numeric *B, int ldb,
+                         const Numeric beta,
+                         Numeric *C, int ldc) {
+  int c_idx;
+  #pragma unroll
+  for (int i = 0; i < BLK_LEN; i++) {
+
+    #pragma unroll
+    for (int j = 0; j < BLK_LEN; j++) {
+
+      c_idx = MAT_POS(i, j, ldc);
+      C[c_idx] = (beta == 0.0) ? 0.0 : C[c_idx] * beta;
+
+      #pragma unroll
+      for (int k = 0; k < BLK_LEN; k++) {
+          C[c_idx] += A[MAT_POS(i, k, lda)] * B[MAT_POS(k, j, ldb)];
+      }
+      C[c_idx] *= alpha;
+    }
+  }
+}
+
+__device__ void gemtm(const Numeric alpha,
+                      const Numeric *A, int lda,
+                      const Numeric *B, int ldb,
+                      const Numeric beta,
+                      Numeric *C, int ldc) {
+  int c_idx;
+  #pragma unroll
+  for (int i = 0; i < BLK_LEN; i++) {
+
+    #pragma unroll
+    for (int j = 0; j < BLK_LEN; j++) {
+
+      c_idx = MAT_POS(i, j, ldc);
+      C[c_idx] = (beta == 0.0) ? 0.0 : C[c_idx] * beta;
+
+      #pragma unroll
+      for (int k = 0; k < BLK_LEN; k++) {
+          C[c_idx] += A[MAT_POS(k, i, lda)] * B[MAT_POS(k, j, ldb)];
+      }
+      C[c_idx] *= alpha;
+    }
+  }
+}
+
+__device__ void gemtmt(const Numeric alpha,
+                       const Numeric *A, int lda,
+                       const Numeric *B, int ldb,
+                       const Numeric beta,
+                       Numeric *C, int ldc) {
+  int c_idx;
+
+  #pragma unroll
+  for (int i = 0; i < BLK_LEN; i++) {
+
+    #pragma unroll
+    for (int j = 0; j < BLK_LEN; j++) {
+
+      c_idx = MAT_POS(i, j, ldc);
+      C[c_idx] = (beta == 0.0) ? 0.0 : C[c_idx] * beta;
+
+      #pragma unroll
+      for (int k = 0; k < BLK_LEN; k++) {
+          C[c_idx] += A[MAT_POS(k, i, lda)] * B[MAT_POS(j, k, ldb)];
+      }
+      C[c_idx] *= alpha;
+    }
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // DGEQT2
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -344,25 +417,24 @@ __device__ int dssrfb(cublasHandle_t *handle,
                       Numeric *Y, int ldy,
                       int n)
 {
-  int res;
+  int res = 0;
   Numeric alpha = 1.0;
   Numeric zero = 0.0;
 
-  #if FLOAT_NUMERIC
-    res = cublasSgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_N, n, n, n, &alpha, T, n, A_kj, n, &zero, X, ldx);
-  #else
-    res = cublasDgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_N, n, n, n, &alpha, T, n, A_kj, n, &zero, X, ldx);
-  #endif
-  CHECK_CUBLAS_RETURN(res, "Failed to compute X = t(T) * A_kj");
+  // X = t(T) * A_kj
+  gemtm(alpha, T, n, A_kj, n, zero, X, ldx);
 
-  #if FLOAT_NUMERIC
-    res = cublasSgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_T, n, n, n, &alpha, T, n, V, n, &zero, Y, ldy);
-  #else
-    res = cublasDgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_T, n, n, n, &alpha, T, n, V, n, &zero, Y, ldy);
-  #endif
-  CHECK_CUBLAS_RETURN(res, "Failed to compute Y' = t(T) * t(V)");
+  // Y' = t(T) * t(V)
+  gemtmt(alpha, T, n, V, n, zero, Y, ldy);
 
-  cudaDeviceSynchronize();
+  // #if FLOAT_NUMERIC
+  //   res = cublasSgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_T, n, n, n, &alpha, T, n, V, n, &zero, Y, ldy);
+  // #else
+  //   res = cublasDgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_T, n, n, n, &alpha, T, n, V, n, &zero, Y, ldy);
+  // #endif
+  // CHECK_CUBLAS_RETURN(res, "Failed to compute Y' = t(T) * t(V)");
+
+  // cudaDeviceSynchronize();
 
   #if FLOAT_NUMERIC
     res = cublasSgemm(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, n, &alpha, Y, ldy, A_ij, n, &alpha, X, ldx);
@@ -771,10 +843,17 @@ __global__ void dssrfb_kernel(Numeric *M, int lbdm,
   res = cudaMalloc(&X, BLK_SIZE_MEM);
   res = cudaMalloc(&Y, BLK_SIZE_MEM);
 
+  for (int i = 0; i < BLK_SIZE; i++) {
+    X[i] = 0;
+    Y[i] = 0;
+  }
+
   Numeric *A_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
   Numeric *A_mn = &M[BLK_POS(m, k + 1 + threadIdx.x, lbdm)];
 
   res = dssrfb(&handle, A_kn, A_mn, V, T, X, BLK_LEN, Y, BLK_LEN, BLK_LEN); // check res
+
+  cudaDeviceSynchronize();
 
   cudaFree(X);
   cudaFree(Y);
