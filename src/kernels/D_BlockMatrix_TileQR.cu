@@ -10,11 +10,27 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-__device__ void gemm_blk(const Numeric alpha,
-                         const Numeric *A, int lda,
-                         const Numeric *B, int ldb,
-                         const Numeric beta,
-                         Numeric *C, int ldc) {
+__device__ void geam(const Numeric alpha,
+                     const Numeric *A, int lda,
+                     const Numeric beta,
+                     const Numeric *B, int ldb,
+                     Numeric *C, int ldc) {
+  #pragma unroll
+  for (int i = 0; i < BLK_LEN; i++) {
+
+    #pragma unroll
+    for (int j = 0; j < BLK_LEN; j++) {
+      C[MAT_POS(i, j, ldc)] = (alpha * A[MAT_POS(i, j, lda)]) + (beta * B[MAT_POS(i, j, ldb)]);
+    }
+  }
+
+}
+
+__device__ void gemm(const Numeric alpha,
+                     const Numeric *A, int lda,
+                     const Numeric *B, int ldb,
+                     const Numeric beta,
+                     Numeric *C, int ldc) {
   int c_idx;
   #pragma unroll
   for (int i = 0; i < BLK_LEN; i++) {
@@ -408,8 +424,7 @@ __device__ int dtsqt2(cublasHandle_t *handle, Numeric *R, Numeric *A, Numeric *T
   *
   *
   */
-__device__ int dssrfb(cublasHandle_t *handle,
-                      Numeric *A_kj,
+__device__ int dssrfb(Numeric *A_kj,
                       Numeric *A_ij,
                       Numeric *V,
                       Numeric *T,
@@ -417,9 +432,8 @@ __device__ int dssrfb(cublasHandle_t *handle,
                       Numeric *Y, int ldy,
                       int n)
 {
-  int res = 0;
-  Numeric alpha = 1.0;
-  Numeric zero = 0.0;
+  const Numeric alpha = 1.0;
+  const Numeric zero = 0.0;
 
   // X = t(T) * A_kj
   gemtm(alpha, T, n, A_kj, n, zero, X, ldx);
@@ -427,36 +441,16 @@ __device__ int dssrfb(cublasHandle_t *handle,
   // Y' = t(T) * t(V)
   gemtmt(alpha, T, n, V, n, zero, Y, ldy);
 
-  // #if FLOAT_NUMERIC
-  //   res = cublasSgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_T, n, n, n, &alpha, T, n, V, n, &zero, Y, ldy);
-  // #else
-  //   res = cublasDgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_T, n, n, n, &alpha, T, n, V, n, &zero, Y, ldy);
-  // #endif
-  // CHECK_CUBLAS_RETURN(res, "Failed to compute Y' = t(T) * t(V)");
+  // Z = X = Y' * A_ij + X
+  gemm(alpha, Y, ldy, A_ij, n, alpha, X, ldx);
 
-  // cudaDeviceSynchronize();
+  // A_kj = A_kj + Z
+  geam(alpha, A_kj, n, alpha, X, ldx, A_kj, n);
 
-  #if FLOAT_NUMERIC
-    res = cublasSgemm(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, n, &alpha, Y, ldy, A_ij, n, &alpha, X, ldx);
-  #else
-    res = cublasDgemm(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, n, &alpha, Y, ldy, A_ij, n, &alpha, X, ldx);
-  #endif
-  CHECK_CUBLAS_RETURN(res, "Failed to compute Z = X = Y' * A_ij + X");
+  // A_ij = (V * Z) + A_ij
+  gemm(alpha, V, n, X, ldx, alpha, A_ij, n);
 
-  #if FLOAT_NUMERIC
-    res = cublasSgeam(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, &alpha, A_kj, n, &alpha, X, ldx, A_kj, n);
-  #else
-    res = cublasDgeam(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, &alpha, A_kj, n, &alpha, X, ldx, A_kj, n);
-  #endif
-  CHECK_CUBLAS_RETURN(res, "Failed to compute A_kj = A_kj + Z");
-
-  #if FLOAT_NUMERIC
-    res = cublasSgemm(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, n, &alpha, V, n, X, ldx, &alpha, A_ij, n);
-  #else
-    res = cublasDgemm(*handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, n, &alpha, V, n, X, ldx, &alpha, A_ij, n);
-  #endif
-  CHECK_CUBLAS_RETURN(res, "Failed to compute A_ij = (V * Z) + A_ij");
-  return res;
+  return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -609,28 +603,22 @@ __device__ int house_qr_q(cublasHandle_t *handle, Numeric *Y, Numeric *T, Numeri
   * @param Q m-by-m matrix to store Q.
   * @param Q_ m-by-n work matrix.
   */
-__device__ int dlarfb(cublasHandle_t *handle, Numeric *A, Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_, int m, int n)
+__device__ int dlarfb(cublasHandle_t *handle, Numeric *A, Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_)
 {
   int res;
 
-  res = house_qr_q(handle, Y, T, Q, Q_, m, n);
+  res = house_qr_q(handle, Y, T, Q, Q_, BLK_LEN, BLK_LEN);
   CHECK_ZERO_ERROR_RETURN(res, "Failed to compute house_qr_q");
 
-  Numeric zero = 0.0;
-  Numeric alpha = 1.0;
-  #if FLOAT_NUMERIC
-    res = cublasSgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_N, m, n, m, &alpha, Q, m, A, m, &zero, Q_, m);
-  #else
-    res = cublasDgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_N, m, n, m, &alpha, Q, m, A, m, &zero, Q_, m);
-  #endif
-  CHECK_CUBLAS_RETURN(res, "Failed to compute Q' = t(Q) * A")
+  const Numeric zero = 0.0;
+  const Numeric alpha = 1.0;
 
-  #if FLOAT_NUMERIC
-    res = cublasScopy(*handle, m * n, Q_, 1, A, 1);
-  #else
-    res = cublasDcopy(*handle, m * n, Q_, 1, A, 1);
-  #endif
-  CHECK_CUBLAS_RETURN(res, "Failed to copy A = Q'")
+  gemtm(alpha, Q, BLK_LEN, A, BLK_LEN, zero, Q_, BLK_LEN);
+
+  #pragma unroll
+  for (int i = 0; i < BLK_SIZE; i++) {
+    A[i] = Q_[i];
+  }
 
   return 0;
 }
@@ -686,7 +674,7 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
 
       Numeric *A_kn = &A[BLK_POS(k, n, blk_n)];
 
-      res = dlarfb(&handle, A_kn, A_kk, T, Q, Q_, BLK_LEN, BLK_LEN);
+      res = dlarfb(&handle, A_kn, A_kk, T, Q, Q_);
       CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dlarfb");
     }
 
@@ -704,7 +692,7 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
         Numeric *A_kn = &A[BLK_POS(k, n, blk_n)];
         Numeric *A_mn = &A[BLK_POS(m, n, blk_n)];
 
-        res = dssrfb(&handle, A_kn, A_mn, A_mk, T, Rbind, DBL_BLK_LEN, &Rbind[BLK_LEN], DBL_BLK_LEN, BLK_LEN);
+        res = dssrfb(A_kn, A_mn, A_mk, T, Rbind, DBL_BLK_LEN, &Rbind[BLK_LEN], DBL_BLK_LEN, BLK_LEN);
         CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dssrfb");
 
         cudaDeviceSynchronize();
@@ -781,7 +769,7 @@ __global__ void dlarfb_kernel(Numeric *M, int lbdm, int k, Numeric *T) {
     Numeric *M_kk = &M[BLK_POS(k, k, lbdm)];
     Numeric *M_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
 
-    res = dlarfb(&handle, M_kn, M_kk, T, Q, Q_, BLK_LEN, BLK_LEN);
+    res = dlarfb(&handle, M_kn, M_kk, T, Q, Q_);
     // check res
 
     cudaFree(Q);
@@ -831,33 +819,14 @@ __global__ void dgeqt2_dlarfb_row_kernel(Numeric *M, int lbdm, int k, int nr_blk
 __global__ void dssrfb_kernel(Numeric *M, int lbdm,
                               int k, int m,
                               Numeric *V,
-                              Numeric *T,
-                              int n) {
-  cublasHandle_t handle;
-  int res = cublasCreate(&handle);
-  // check res
-
-  Numeric *X;
-  Numeric *Y;
-
-  res = cudaMalloc(&X, BLK_SIZE_MEM);
-  res = cudaMalloc(&Y, BLK_SIZE_MEM);
-
-  for (int i = 0; i < BLK_SIZE; i++) {
-    X[i] = 0;
-    Y[i] = 0;
-  }
+                              Numeric *T) {
+  Numeric X[BLK_SIZE];
+  Numeric Y[BLK_SIZE];
 
   Numeric *A_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
   Numeric *A_mn = &M[BLK_POS(m, k + 1 + threadIdx.x, lbdm)];
 
-  res = dssrfb(&handle, A_kn, A_mn, V, T, X, BLK_LEN, Y, BLK_LEN, BLK_LEN); // check res
-
-  cudaDeviceSynchronize();
-
-  cudaFree(X);
-  cudaFree(Y);
-  cublasDestroy(handle);
+  dssrfb(A_kn, A_mn, V, T, X, BLK_LEN, Y, BLK_LEN, BLK_LEN);
 }
 
 __global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m, int nr_blk_cols) {
@@ -892,8 +861,7 @@ __global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m, int
     cudaDeviceSynchronize();
 
     if (k != nr_blk_cols - 1) {
-      dssrfb_kernel<<<1, nr_blk_cols - k - 1>>>(M, lbdm, k, m, A_mk, T, BLK_LEN); // check res
-      //CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dssrfb");
+      dssrfb_kernel<<<1, nr_blk_cols - k - 1>>>(M, lbdm, k, m, A_mk, T);
     }
 
     cudaDeviceSynchronize();
