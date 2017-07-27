@@ -10,6 +10,18 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+__device__ void norm(int n, const Numeric *x, Numeric *result) {
+  *result = 0;
+  for (int i = 0; i < n; i++) {
+    *result += (x[i] * x[i]);
+  }
+  #if FLOAT_NUMERIC
+    *result = sqrtf(*result);
+  #else
+    *result = sqrt(*result);
+  #endif
+}
+
 __device__ void geam(const Numeric alpha,
                      const Numeric *A, int lda,
                      const Numeric beta,
@@ -114,36 +126,26 @@ __device__ void gemtmt(const Numeric alpha,
   */
 __device__ int house(cublasHandle_t *handle, Numeric *x, Numeric *v, int n)
 {
-    int res;
     Numeric x_norm;
 
-    // Copies x into v and calculates the norm
-    #if FLOAT_NUMERIC
-    	res = cublasScopy(*handle, n, x, 1, v, 1);
-      CHECK_CUBLAS_RETURN(res, "Failed to copy vector x");
+    cudaDeviceSynchronize();
+    for (int i = 0; i < n; i++) {
+      v[i] = x[i];
+    }
 
-    	res = cublasSnrm2(*handle, n, x, 1, &x_norm);
-    #else
-    	res = cublasDcopy(*handle, n, x, 1, v, 1);
-      CHECK_CUBLAS_RETURN(res, "Failed to copy vector x");
-
-    	res = cublasDnrm2(*handle, n, x, 1, &x_norm);
-    #endif
-    CHECK_CUBLAS_RETURN(res, "Failed to calculate norm of x");
+    norm(n, x, &x_norm);
 
     if (x_norm != 0) {
     	const Numeric sign = x[0] >= 0 ? 1.0 : -1.0;
     	const Numeric beta = 1.0 / (x[0] + (sign * x_norm));
-    	#if FLOAT_NUMERIC
-    		res = cublasSscal(*handle, n - 1, &beta, &v[1], 1);
-    	#else
-    		res = cublasDscal(*handle, n - 1, &beta, &v[1], 1);
-    	#endif
-      CHECK_CUBLAS_RETURN(res, "Failed scale vector v");
+
+      for (int i = 1; i < n; i++) {
+        v[i] *= beta;
+      }
     }
     v[0] = 1.0;
 
-    return res;
+    return 0;
 }
 
 /**
@@ -162,14 +164,9 @@ __device__ int house(cublasHandle_t *handle, Numeric *x, Numeric *v, int n)
   */
 __device__ int house_row(cublasHandle_t *handle, Numeric *A, Numeric *v, Numeric *beta, Numeric *w, int m, int n, int ldm)
 {
-    int res;
+    int res = 0;
 
-    // Computes beta
-    #if FLOAT_NUMERIC
-      res = cublasSnrm2(*handle, m, v, 1, beta);
-    #else
-      res = cublasDnrm2(*handle, m, v, 1, beta);
-    #endif
+    norm(m, v, beta);
     CHECK_CUBLAS_RETURN(res, "Failed to compute beta");
 
     *beta = -2.0 / (*beta * *beta);
