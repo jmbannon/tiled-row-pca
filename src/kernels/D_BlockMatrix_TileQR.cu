@@ -77,22 +77,6 @@ __device__ void norm(int n, const Numeric *x, Numeric *result) {
   #endif
 }
 
-__device__ void geam(const Numeric alpha,
-                     const Numeric *A, int lda,
-                     const Numeric beta,
-                     const Numeric *B, int ldb,
-                     Numeric *C, int ldc) {
-  #pragma unroll
-  for (int i = 0; i < BLK_LEN; i++) {
-
-    #pragma unroll
-    for (int j = 0; j < BLK_LEN; j++) {
-      C[MAT_POS(i, j, ldc)] = (alpha * A[MAT_POS(i, j, lda)]) + (beta * B[MAT_POS(i, j, ldb)]);
-    }
-  }
-
-}
-
 __device__ void gemm(const Numeric alpha,
                      const Numeric *A, int lda,
                      const Numeric *B, int ldb,
@@ -480,27 +464,29 @@ __device__ int dssrfb(Numeric *A_kj,
                       Numeric *A_ij,
                       Numeric *V,
                       Numeric *T,
-                      Numeric *X, int ldx,
-                      Numeric *Y, int ldy,
-                      int n)
+                      Numeric *X,
+                      Numeric *Y)
 {
   const Numeric alpha = 1.0;
   const Numeric zero = 0.0;
 
   // X = t(T) * A_kj
-  gemtm(alpha, T, n, A_kj, n, zero, X, ldx);
+  gemtm(alpha, T, BLK_LEN, A_kj, BLK_LEN, zero, X, BLK_LEN);
 
   // Y' = t(T) * t(V)
-  gemtmt(alpha, T, n, V, n, zero, Y, ldy);
+  gemtmt(alpha, T, BLK_LEN, V, BLK_LEN, zero, Y, BLK_LEN);
 
   // Z = X = Y' * A_ij + X
-  gemm(alpha, Y, ldy, A_ij, n, alpha, X, ldx);
+  gemm(alpha, Y, BLK_LEN, A_ij, BLK_LEN, alpha, X, BLK_LEN);
 
-  // A_kj = A_kj + Z
-  geam(alpha, A_kj, n, alpha, X, ldx, A_kj, n);
+  // A_kj += Z
+  #pragma unroll
+  for (int i = 0; i < BLK_SIZE; i++) {
+    A_kj[i] += X[i];
+  }
 
   // A_ij = (V * Z) + A_ij
-  gemm(alpha, V, n, X, ldx, alpha, A_ij, n);
+  gemm(alpha, V, BLK_LEN, X, BLK_LEN, alpha, A_ij, BLK_LEN);
 
   return 0;
 }
@@ -641,7 +627,7 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
         Numeric *A_kn = &A[BLK_POS(k, n, blk_n)];
         Numeric *A_mn = &A[BLK_POS(m, n, blk_n)];
 
-        res = dssrfb(A_kn, A_mn, A_mk, T, Rbind, DBL_BLK_LEN, &Rbind[BLK_LEN], DBL_BLK_LEN, BLK_LEN);
+        res = dssrfb(A_kn, A_mn, A_mk, T, Q, Q_);
         CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dssrfb");
 
         cudaDeviceSynchronize();
@@ -738,7 +724,7 @@ __global__ void dssrfb_kernel(Numeric *M, int lbdm,
   Numeric *A_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
   Numeric *A_mn = &M[BLK_POS(m, k + 1 + threadIdx.x, lbdm)];
 
-  dssrfb(A_kn, A_mn, V, T, X, BLK_LEN, Y, BLK_LEN, BLK_LEN);
+  dssrfb(A_kn, A_mn, V, T, X, Y);
 }
 
 __global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m, int nr_blk_cols) {
