@@ -10,12 +10,14 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-// cublasStrmm(handle, CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, diag, m, k, &alpha, B, ldb, A, lda, C, ldc);
-__device__ void trmm1(const Numeric alpha,
-                      const Numeric *A, int lda,
-                      const Numeric *B, int ldb,
-                      Numeric *C, int ldc) {
-  int c_idx;
+/**
+  * Computes C = A * t(B) where B is a lower-filled triangular matrix with ones on its diagonal.
+  */
+__device__ void blk_trmmr(const Numeric alpha,
+                          const Numeric *A,
+                          const Numeric *B,
+                          Numeric *C) {
+  register int c_idx;
 
   #pragma unroll
   for (int i = 0; i < BLK_LEN; i++) {
@@ -23,11 +25,11 @@ __device__ void trmm1(const Numeric alpha,
     #pragma unroll
     for (int j = 0; j < BLK_LEN; j++) {
 
-      c_idx = MAT_POS(i, j, ldc);
-      C[c_idx] = A[MAT_POS(i, j, lda)];
+      c_idx = MAT_POS(i, j, BLK_LEN);
+      C[c_idx] = A[MAT_POS(i, j, BLK_LEN)];
 
       for (int k = 0; k < j; k++) {
-          C[c_idx] += A[MAT_POS(i, k, lda)] * B[MAT_POS(j, k, ldb)];
+          C[c_idx] += A[MAT_POS(i, k, BLK_LEN)] * B[MAT_POS(j, k, BLK_LEN)];
       }
 
       C[c_idx] *= alpha;
@@ -35,12 +37,14 @@ __device__ void trmm1(const Numeric alpha,
   }
 }
 
-// res = cublasStrmm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, diag, k, n, &alpha, A, lda, B, ldb, C, ldc);
-__device__ void trmm2(const Numeric alpha,
-                      const Numeric *A, int lda,
-                      const Numeric *B, int ldb,
-                      Numeric *C, int ldc) {
-  int c_idx;
+/**
+  * Computes C = A * B where A is a lower-filled triangular matrix with ones on its diagonal.
+  */
+__device__ void blk_trmml(const Numeric alpha,
+                          const Numeric *A,
+                          const Numeric *B,
+                          Numeric *C) {
+  register int c_idx;
 
   #pragma unroll
   for (int i = 0; i < BLK_LEN; i++) {
@@ -48,11 +52,11 @@ __device__ void trmm2(const Numeric alpha,
     #pragma unroll
     for (int j = 0; j < BLK_LEN; j++) {
 
-      c_idx = MAT_POS(i, j, ldc);
-      C[c_idx] = B[MAT_POS(i, j, ldb)];
+      c_idx = MAT_POS(i, j, BLK_LEN);
+      C[c_idx] = B[MAT_POS(i, j, BLK_LEN)];
 
       for (int k = 0; k < i; k++) {
-          C[c_idx] += A[MAT_POS(i, k, lda)] * B[MAT_POS(k, j, ldb)];
+          C[c_idx] += A[MAT_POS(i, k, BLK_LEN)] * B[MAT_POS(k, j, BLK_LEN)];
       }
 
       C[c_idx] *= alpha;
@@ -520,11 +524,11 @@ __device__ int house_qr_q(Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_)
     Numeric alpha = 1.0;
     
     // Calculates Q' = Y * T
-    trmm2(alpha, Y, BLK_LEN, T, BLK_LEN, Q_, BLK_LEN);
+    blk_trmml(alpha, Y, T, Q_);
 
     // Calculates Q = Q' * t(Y)
     //              = Y * T * t(Y)
-    trmm1(alpha, Q_, BLK_LEN, Y, BLK_LEN, Q, BLK_LEN);
+    blk_trmmr(alpha, Q_, Y, Q);
 
     // Calculates Q = I + Q
     //              = I + (Y * T * t(Y))
