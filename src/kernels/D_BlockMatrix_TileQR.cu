@@ -175,11 +175,9 @@ __device__ void gemtmt(const Numeric alpha,
   *
   * @see{https://www.youtube.com/watch?v=d-yPM-bxREs}
   */
-__device__ int house(cublasHandle_t *handle, Numeric *x, Numeric *v, int n)
+__device__ int house(Numeric *x, Numeric *v, int n)
 {
     Numeric x_norm;
-
-    cudaDeviceSynchronize();
     for (int i = 0; i < n; i++) {
       v[i] = x[i];
     }
@@ -262,7 +260,9 @@ __device__ int house_qr(cublasHandle_t *handle, Numeric *A, Numeric *beta, Numer
 
   for (int j = 0; j < n; j++) {
     int pos = MAT_POS(j, j, m);
-    res = house(handle, &A[pos], &v[j], m - j);
+
+    cudaDeviceSynchronize();
+    res = house(&A[pos], &v[j], m - j);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to compute house");
 
     res = house_row(handle, &A[pos], &v[j], &beta[j], &w[j], m - j, n - j, m);
@@ -409,43 +409,46 @@ __device__ int dgeqt2(cublasHandle_t *handle, Numeric *A, Numeric *T, int m, int
   *          vectors is an identity matrix, so there is no need to store that.
   * @param T n-by-n output matrix.
   * @param RA_rowbind 2n-by-n work matrix to store the row-bind and compute DGEQT2 on.
-  * @param zero_tri True if lower-triangular portion of R needs to be zeroed. False otherwise.
   */
-__device__ int dtsqt2(cublasHandle_t *handle, Numeric *R, Numeric *A, Numeric *T, Numeric *RA_rowbind, bool zero_tri, int n)
+__device__ int dtsqt2(cublasHandle_t *handle, Numeric *R, Numeric *A, Numeric *T, Numeric *RA_rowbind)
 {
   int res;
-  int RArows = 2*n;
-
-  // TODO: Optimize
 
   // Stores R into upper-portion of RA_rowbind. Zeroes lower-triangular portion.
-  for (int j = 0; j < n; j++) {
-    for (int i = 0; i < n; i++) {
-      RA_rowbind[MAT_POS(i, j, RArows)] = (i > j) ? 0.0 : R[MAT_POS(i, j, n)];
+  #pragma unroll
+  for (int j = 0; j < BLK_LEN; j++) {
+    #pragma unroll
+    for (int i = 0; i < BLK_LEN; i++) {
+      RA_rowbind[MAT_POS(i, j, DBL_BLK_LEN)] = (i > j) ? 0.0 : R[MAT_POS(i, j, BLK_LEN)];
     }
   }
 
   // Stores A into lower-portion of RA_rowbind.
-  for (int j = 0; j < n; j++) {
-    for (int i = 0; i < n; i++) {
-      RA_rowbind[MAT_POS(n + i, j, RArows)] = A[MAT_POS(i, j, n)];
+  #pragma unroll
+  for (int j = 0; j < BLK_LEN; j++) {
+    #pragma unroll
+    for (int i = 0; i < BLK_LEN; i++) {
+      RA_rowbind[MAT_POS(BLK_LEN + i, j, DBL_BLK_LEN)] = A[MAT_POS(i, j, BLK_LEN)];
     }
   }
 
-  res = dgeqt2(handle, RA_rowbind, T, RArows, n);
+  res = dgeqt2(handle, RA_rowbind, T, DBL_BLK_LEN, BLK_LEN);
   CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dgeqt2 on row-binded matrix");
 
   // Stores output R matrix into upper-triangular portion of R
-  for (int j = 0; j < n; j++) {
+  #pragma unroll
+  for (int j = 0; j < BLK_LEN; j++) {
     for (int i = 0; i <= j; i++) {
-      R[MAT_POS(i, j, n)] = RA_rowbind[MAT_POS(i, j, RArows)];
+      R[MAT_POS(i, j, BLK_LEN)] = RA_rowbind[MAT_POS(i, j, DBL_BLK_LEN)];
     }
   }
 
   // Stores output householder vectors into A.
-  for (int j = 0; j < n; j++) {
-    for (int i = 0; i < n; i++) {
-      A[MAT_POS(i, j, n)] = RA_rowbind[MAT_POS(n + i, j, RArows)];
+  #pragma unroll
+  for (int j = 0; j < BLK_LEN; j++) {
+    #pragma unroll
+    for (int i = 0; i < BLK_LEN; i++) {
+      A[MAT_POS(i, j, BLK_LEN)] = RA_rowbind[MAT_POS(BLK_LEN + i, j, DBL_BLK_LEN)];
     }
   }
 
@@ -627,7 +630,7 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
         T[i] = 0;  
       }
 
-      res = dtsqt2(&handle, A_kk, A_mk, T, Rbind, true, BLK_LEN);
+      res = dtsqt2(&handle, A_kk, A_mk, T, Rbind);
       CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dtsqt2");
 
       for (int n = (k + 1); n < blk_n; n++) {
@@ -760,7 +763,7 @@ __global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m, int
     Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
     Numeric *A_kk = &M[BLK_POS(k, k, lbdm)];
 
-    res = dtsqt2(&handle, A_kk, A_mk, T, Rbind, true, BLK_LEN);
+    res = dtsqt2(&handle, A_kk, A_mk, T, Rbind);
     // check res
 
     cudaDeviceSynchronize();
@@ -883,9 +886,7 @@ BlockMatrix_TileQR_single_thread(BlockMatrix *A)
 
 
 __global__ void house_kernel(Numeric *x, Numeric *v, int n) {
-    cublasHandle_t handle;
-    int res = cublasCreate(&handle);
-    house(&handle, x, v, n);
+    house(x, v, n);
 }
 
 extern "C"
