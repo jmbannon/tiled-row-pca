@@ -5,7 +5,7 @@ include make.inc
 EXEC            = row-tile-pca
 TEST_EXEC       = test-row-tile-pca
 PERF_EXEC       = perf-row-tile-pca
-CC              = nvcc -m64 -g -G --device-debug -lineinfo
+CC              = nvcc -m64
 FCC             = gfortran
 
 # - Flags -------------------------------------------------------------
@@ -22,7 +22,7 @@ LAPACK          = ${LAPACK_LIB_INCL} ${LAPACK_C_INCL} ${LAPACK_ARGS}
 CUDA_FLAGS      = -lcuda -lcudart -lcublas -lcublas_device
 CUDA_INCL       = -I/usr/local/lib/cuda/include -L${CUDA_LIB_DIR} ${CUDA_FLAGS}
 
-SHARED_FLAGS    = -Wno-deprecated-gpu-targets -g
+SHARED_FLAGS    = -Wno-deprecated-gpu-targets
 HOST_FLAGS      = ${SHARED_FLAGS} ${LOCAL} ${LAPACK} ${OMP} ${OMPI} ${CUDA}
 DEVICE_FLAGS    = ${SHARED_FLAGS} -arch=${CUDA_ARCH} ${CUDA_INCL}
 
