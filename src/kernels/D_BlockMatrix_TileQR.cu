@@ -293,16 +293,11 @@ __device__ int house_row(Numeric *A, Numeric *v, Numeric *beta, Numeric *w, int 
   * @param A upper triangular matrix R. Lower triangular contains partial householder reflectors:
   *        all diagonal elements should be 1 to represent full householder reflector.
   * @param w Work-space vector.
+  * @param v Work-space vector.
   * @param store_house True if householder vectors should be stored in lower-triangular portion of output. False otherwise.
   */
-__device__ int house_qr(Numeric *A, Numeric *beta, Numeric *w, bool store_house, int m, int n)
+__device__ int house_qr(Numeric *A, Numeric *beta, Numeric *w, Numeric *v, int m, int n)
 {
-  int res;
-  Numeric *v;
-
-  res = cudaMalloc(&v, m * sizeof(Numeric));
-  CHECK_SUCCESS_RETURN(res);
-
   for (int j = 0; j < n; j++) {
     int pos = MAT_POS(j, j, m);
 
@@ -310,17 +305,14 @@ __device__ int house_qr(Numeric *A, Numeric *beta, Numeric *w, bool store_house,
     house_row(&A[pos], &v[j], &beta[j], &w[j], m - j, n - j, m);
 
     // Copies householder vector into lower triangular portion of A
-    if (store_house && j < m) {
+    if (j < m) {
       for (int i = 1; i < m - j; i++) {
         A[pos + i] = v[j + i];
       }
     }
   }
 
-  res = cudaFree(v);
-  CHECK_SUCCESS_RETURN(res);
-
-  return res;
+  return 0;
 }
 
 
@@ -388,9 +380,10 @@ __device__ int house_yt(Numeric *Y, Numeric *T, Numeric *beta, int m, int n)
 __device__ int dblk_dgeqt2(Numeric *A, Numeric *T)
 {
   Numeric w[DBL_BLK_LEN];
+  Numeric v[DBL_BLK_LEN];
   Numeric beta[BLK_LEN];
 
-  house_qr(A, beta, w, true, DBL_BLK_LEN, BLK_LEN);
+  house_qr(A, beta, w, v, DBL_BLK_LEN, BLK_LEN);
 
   // Restore householder vectors for YT Generation. Store diag in work vector.
   int diag_idx;
@@ -413,9 +406,10 @@ __device__ int dblk_dgeqt2(Numeric *A, Numeric *T)
 __device__ int blk_dgeqt2(Numeric *A, Numeric *T)
 {
   Numeric w[BLK_LEN];
+  Numeric v[BLK_LEN];
   Numeric beta[BLK_LEN];
 
-  house_qr(A, beta, w, true, BLK_LEN, BLK_LEN);
+  house_qr(A, beta, w, v, BLK_LEN, BLK_LEN);
 
   // Restore householder vectors for YT Generation. Store diag in work vector.
   int diag_idx;
