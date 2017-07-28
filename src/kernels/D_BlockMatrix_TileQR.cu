@@ -778,6 +778,8 @@ __global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m, int
     Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
     __shared__ Numeric T[BLK_SIZE];
 
+    printf("idx: %d\n", threadIdx.x);
+
     if (threadIdx.x == 0) {
       Numeric Rbind[2 * BLK_SIZE];
       for (int i = 0; i < BLK_SIZE; i++) {
@@ -789,6 +791,7 @@ __global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m, int
     }
     __syncthreads();
 
+    if (threadIdx.x == 0) {
     Numeric X[BLK_SIZE];
     Numeric Y[BLK_SIZE];
     for (int i = 0; i < nr_blk_cols - k - 1; i++) {
@@ -796,6 +799,7 @@ __global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m, int
       Numeric *A_mn = &M[BLK_POS(m, k + 1 + i, lbdm)];
 
       dssrfb(A_kn, A_mn, A_mk, T, X, Y);
+    }
     }
 
     // if (k != nr_blk_cols - 1) {
@@ -870,7 +874,13 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM)
     j = j_start;
     while (dl[j] != 0 && j < min_blk_d) {
       if (dl[j] < blk_m) {
-        dtsqt2_dssrfb_row_kernel<<<1, 1>>>(M, blk_n, j, dl[j], blk_n);
+        if (j != blk_n - 1) {
+          printf("threads? %d\n", blk_n - j - 1);
+          dtsqt2_dssrfb_row_kernel<<<1, blk_n - j - 1>>>(M, blk_n, j, dl[j], blk_n);
+        } else {
+          printf("threads? 1\n");
+          dtsqt2_dssrfb_row_kernel<<<1, 1>>>(M, blk_n, j, dl[j], blk_n);
+        }
         dl[j] += 1;
       } else if (dl[j] == blk_m) {
         j_start = j + 1;
