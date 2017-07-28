@@ -77,11 +77,11 @@ __device__ void norm(int n, const Numeric *x, Numeric *result) {
   #endif
 }
 
-__device__ void gemm(const Numeric alpha,
-                     const Numeric *A, int lda,
-                     const Numeric *B, int ldb,
-                     const Numeric beta,
-                     Numeric *C, int ldc) {
+__device__ void blk_gemm(const Numeric alpha,
+                         const Numeric *A, int lda,
+                         const Numeric *B, int ldb,
+                         const Numeric beta,
+                         Numeric *C, int ldc) {
   int c_idx;
   #pragma unroll
   for (int i = 0; i < BLK_LEN; i++) {
@@ -477,7 +477,7 @@ __device__ int dssrfb(Numeric *A_kj,
   gemtmt(alpha, T, BLK_LEN, V, BLK_LEN, zero, Y, BLK_LEN);
 
   // Z = X = Y' * A_ij + X
-  gemm(alpha, Y, BLK_LEN, A_ij, BLK_LEN, alpha, X, BLK_LEN);
+  blk_gemm(alpha, Y, BLK_LEN, A_ij, BLK_LEN, alpha, X, BLK_LEN);
 
   // A_kj += Z
   #pragma unroll
@@ -486,7 +486,7 @@ __device__ int dssrfb(Numeric *A_kj,
   }
 
   // A_ij = (V * Z) + A_ij
-  gemm(alpha, V, BLK_LEN, X, BLK_LEN, alpha, A_ij, BLK_LEN);
+  blk_gemm(alpha, V, BLK_LEN, X, BLK_LEN, alpha, A_ij, BLK_LEN);
 
   return 0;
 }
