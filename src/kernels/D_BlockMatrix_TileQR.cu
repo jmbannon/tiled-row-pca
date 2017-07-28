@@ -790,12 +790,21 @@ __global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m, int
     }
     __syncthreads();
 
-    if (k != nr_blk_cols - 1) {
-      dssrfb_kernel<<<1, nr_blk_cols - k - 1>>>(M, lbdm, k, m, A_mk, T);
+    Numeric X[BLK_SIZE];
+    Numeric Y[BLK_SIZE];
+    for (int i = 0; i < nr_blk_cols - k - 1; i++) {
+      Numeric *A_kn = &M[BLK_POS(k, k + 1 + i, lbdm)];
+      Numeric *A_mn = &M[BLK_POS(m, k + 1 + i, lbdm)];
+
+      dssrfb(A_kn, A_mn, A_mk, T, X, Y);
     }
 
-    cudaDeviceSynchronize();
-    cudaFree(T);
+    // if (k != nr_blk_cols - 1) {
+    //   dssrfb_kernel<<<1, nr_blk_cols - k - 1>>>(M, lbdm, k, m, A_mk, T);
+    // }
+
+    // cudaDeviceSynchronize();
+    // cudaFree(T);
 }
 
 // extern "C"
