@@ -775,19 +775,20 @@ __global__ void dssrfb_kernel(Numeric *M, int lbdm,
 }
 
 __global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m, int nr_blk_cols) {
+    Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
     Numeric *T;
     int res = cudaMalloc(&T, BLK_SIZE_MEM);
 
-    Numeric Rbind[2 * BLK_SIZE];
-
-    for (int i = 0; i < BLK_SIZE; i++) {
+    if (threadIdx.x == 0) {
+      Numeric Rbind[2 * BLK_SIZE];
+      for (int i = 0; i < BLK_SIZE; i++) {
         T[i] = 0;
+      }
+
+      Numeric *A_kk = &M[BLK_POS(k, k, lbdm)];
+      dtsqt2(A_kk, A_mk, T, Rbind);
     }
-
-    Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
-    Numeric *A_kk = &M[BLK_POS(k, k, lbdm)];
-
-    dtsqt2(A_kk, A_mk, T, Rbind);
+    __syncthreads();
 
     if (k != nr_blk_cols - 1) {
       dssrfb_kernel<<<1, nr_blk_cols - k - 1>>>(M, lbdm, k, m, A_mk, T);
