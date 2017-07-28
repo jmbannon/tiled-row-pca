@@ -720,10 +720,6 @@ __global__ void dlarfb_kernel(Numeric *M, int lbdm, int k, Numeric *T) {
 __global__ void dgeqt2_dlarfb_row_kernel(Numeric *M, int lbdm, int k, int nr_blk_rows, int nr_blk_cols) {
     Numeric *T;
     Numeric *M_kk;
-    cublasHandle_t handle;
-
-    int res = cublasCreate(&handle);
-    // check res
 
     res = cudaMalloc(&T, BLK_SIZE_MEM);
     for (int i = 0; i < BLK_SIZE; i++) {
@@ -743,7 +739,6 @@ __global__ void dgeqt2_dlarfb_row_kernel(Numeric *M, int lbdm, int k, int nr_blk
     cudaDeviceSynchronize();
 
     cudaFree(T);
-    cublasDestroy(handle);
 }
 
 __global__ void dtsqt2_kernel(Numeric *M, int lbdm, int k, int m, int nr_blk_cols) {
