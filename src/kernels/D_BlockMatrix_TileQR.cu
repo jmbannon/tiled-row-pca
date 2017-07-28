@@ -385,55 +385,6 @@ __device__ int house_yt(Numeric *Y, Numeric *T, Numeric *beta, int m, int n)
   * @param T n-by-n output matrix.
   * @return R, Y, T, where A = QR and T for Q = I + Y %*% T %*% t(Y). Overwrites A with R and Y.
   */
-__device__ int dgeqt2(cublasHandle_t *handle, Numeric *A, Numeric *T, int m, int n)
-{
-  int res;
-  // Temporary work matrix
-  Numeric *w;
-  Numeric *beta;
-
-  res = cudaMalloc(&w, m * sizeof(Numeric));
-  CHECK_SUCCESS_RETURN(res);
-
-  res = cudaMalloc(&beta, n * sizeof(Numeric));
-  CHECK_SUCCESS_RETURN(res);
-
-  house_qr(A, beta, w, true, m, n);
-
-  // Restore householder vectors for YT Generation. Store diag in work vector.
-  int diag_idx;
-  for (int i = 0; i < n; i++) {
-    diag_idx = MAT_POS(i, i, m);
-    w[i] = A[diag_idx];
-    A[diag_idx] = 1.0;
-
-  }
-
-  house_yt(A, T, beta, m, n);
-
-  for (int i = 0; i < n; i++) {
-    diag_idx = MAT_POS(i, i, m);
-    A[diag_idx] = w[i];
-  }
-
-  res = cudaFree(w);
-  CHECK_SUCCESS_RETURN(res);
-
-  res = cudaFree(beta);
-  CHECK_SUCCESS_RETURN(res);
-
-  return 0;
-}
-
-/**
-  * Performs QR decomposition on a m-by-n matrix A. Computes upper-triangular matrix R,
-  * where A = QR and Householder vectors Y are stored in lower-diagonal portion of R.
-  * Uses Y to compute T, where Q = I + Y %*% T %*% t(Y).
-  *
-  * @param A m-by-n matrix.
-  * @param T n-by-n output matrix.
-  * @return R, Y, T, where A = QR and T for Q = I + Y %*% T %*% t(Y). Overwrites A with R and Y.
-  */
 __device__ int dblk_dgeqt2(Numeric *A, Numeric *T)
 {
   Numeric w[DBL_BLK_LEN];
