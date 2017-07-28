@@ -64,6 +64,17 @@ __device__ void blk_trmml(const Numeric alpha,
   }
 }
 
+//cublasStrmv(*handle, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, j, T, n, &T[z_idx], 1);
+__device__ void trmv(int m,
+                     const Numeric *A, int lda,
+                     Numeric *C) {
+  for (int i = 0; i < m; i++) {
+    C[i] *= A[MAT_POS(i, i, lda)];
+    for (int j = i + 1; j < m; j++) {
+      C[i] += A[MAT_POS(i, j, lda)] * C[j];
+    }
+  }
+}
 
 __device__ void norm(int n, const Numeric *x, Numeric *result) {
   *result = 0;
@@ -75,6 +86,27 @@ __device__ void norm(int n, const Numeric *x, Numeric *result) {
   #else
     *result = sqrt(*result);
   #endif
+}
+
+__device__ void gemtm(int m, int n, int p,
+                      const Numeric alpha,
+                      const Numeric *A, int lda,
+                      const Numeric *B, int ldb,
+                      const Numeric beta,
+                      Numeric *C, int ldc) {
+  int c_idx;
+  for (int i = 0; i < m; i++) {
+    for (int j = 0; j < n; j++) {
+
+      c_idx = MAT_POS(i, j, ldc);
+      C[c_idx] = (beta == 0.0) ? 0.0 : C[c_idx] * beta;
+
+      for (int k = 0; k < p; k++) {
+          C[c_idx] += A[MAT_POS(k, i, lda)] * B[MAT_POS(k, j, ldb)];
+      }
+      C[c_idx] *= alpha;
+    }
+  }
 }
 
 __device__ void gemm(int m, int n, int p,
@@ -316,9 +348,9 @@ __device__ int house_qr(Numeric *A, Numeric *beta, Numeric *w, bool store_house,
   * @param Y m-by-n matrix where lower-triangular + diag portion holds householder vectors and the upper-triangular portion holds the R matrix from QR.
   * @param T n-by-n output matrix to store T
   */
-__device__ int house_yt(cublasHandle_t *handle, Numeric *Y, Numeric *T, Numeric *beta, int m, int n)
+__device__ int house_yt(Numeric *Y, Numeric *T, Numeric *beta, int m, int n)
 {
-  int res;
+  // int res;
   Numeric alpha;
   Numeric zero = 0.0;
   int v_idx;
@@ -334,20 +366,10 @@ __device__ int house_yt(cublasHandle_t *handle, Numeric *Y, Numeric *T, Numeric 
     z_idx = MAT_POS(0, j, n);
 
     // Computes -2 * t(Y) * v_j = z' in an optimized way to ignore 0 elements in v_j. Stores it in z-location of T matrix.
-    #if FLOAT_NUMERIC
-      res = cublasSgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_N, j, 1, m - j, &alpha, &Y[y_idx], m, &Y[v_idx], m, &zero, &T[z_idx], n);
-    #else
-      res = cublasDgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_N, j, 1, m - j, &alpha, &Y[y_idx], m, &Y[v_idx], m, &zero, &T[z_idx], n);
-    #endif
-    CHECK_CUBLAS_RETURN(res, "Failed to compute -2 * t(Y) * v_j matrix-matrix multiplication in house_yt");
+    gemtm(j, 1, m - j, alpha, &Y[y_idx], m, &Y[v_idx], m, zero, &T[z_idx], n);
 
     // Computes T * z' using a triangular matrix-vector multiplication routine.
-    #if FLOAT_NUMERIC
-      res = cublasStrmv(*handle, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, j, T, n, &T[z_idx], 1);
-    #else
-      res = cublasDtrmv(*handle, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, j, T, n, &T[z_idx], 1);
-    #endif
-    CHECK_CUBLAS_RETURN(res, "Failed to compute T * z' triangular matrix-vector multiplication in house_yt");
+    trmv(j, T, n, &T[z_idx]);
 
     T[MAT_POS(j, j, n)] = beta[j];
   }
@@ -376,8 +398,7 @@ __device__ int dgeqt2(cublasHandle_t *handle, Numeric *A, Numeric *T, int m, int
   res = cudaMalloc(&beta, n * sizeof(Numeric));
   CHECK_SUCCESS_RETURN(res);
 
-  res = house_qr(A, beta, w, true, m, n);
-  CHECK_ZERO_ERROR_RETURN(res, "Failed to compute house_qr in dgeqt2");
+  house_qr(A, beta, w, true, m, n);
 
   // Restore householder vectors for YT Generation. Store diag in work vector.
   int diag_idx;
@@ -388,8 +409,7 @@ __device__ int dgeqt2(cublasHandle_t *handle, Numeric *A, Numeric *T, int m, int
 
   }
 
-  res = house_yt(handle, A, T, beta, m, n);
-  CHECK_ZERO_ERROR_RETURN(res, "Failed to compute house_yt in dgeqt2");
+  house_yt(A, T, beta, m, n);
 
   for (int i = 0; i < n; i++) {
     diag_idx = MAT_POS(i, i, m);
