@@ -519,8 +519,8 @@ __device__ int house_qr_q(Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_)
     // Calculates Q = I + Q
     //              = I + (Y * T * t(Y))
     #pragma unroll
-    for (int i = 0; i < BLK_LEN; i++) {
-      Q[MAT_POS(i, i, BLK_LEN)] += 1.0;
+    for (int i = 0; i < BLK_SIZE; i += BLK_LEN + 1) {
+      Q[i] += 1.0;
     }
 
     return 0;
