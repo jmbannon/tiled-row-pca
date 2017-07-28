@@ -118,5 +118,5 @@ int Test_TileQR_67_1027_mt() {
 }
 
 int Test_TileQR_71_29_mt() {
-    return Test_TileQR(79, 29, 500, 666, true);
+    return Test_TileQR(29, 14, 500, 666, true);
 }

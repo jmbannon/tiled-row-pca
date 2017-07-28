@@ -776,8 +776,7 @@ __global__ void dssrfb_kernel(Numeric *M, int lbdm,
 
 __global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m, int nr_blk_cols) {
     Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
-    Numeric *T;
-    int res = cudaMalloc(&T, BLK_SIZE_MEM);
+    __shared__ Numeric T[BLK_SIZE];
 
     if (threadIdx.x == 0) {
       Numeric Rbind[2 * BLK_SIZE];
