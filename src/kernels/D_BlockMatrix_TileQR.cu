@@ -77,11 +77,36 @@ __device__ void norm(int n, const Numeric *x, Numeric *result) {
   #endif
 }
 
+__device__ void gemm(const Numeric alpha,
+                     int m, int n, int p,
+                     const Numeric *A, int lda,
+                     const Numeric *B, int ldb,
+                     const Numeric beta,
+                     Numeric *C, int ldc) {
+  int c_idx;
+  #pragma unroll
+  for (int i = 0; i < m; i++) {
+
+    #pragma unroll
+    for (int j = 0; j < n; j++) {
+
+      c_idx = MAT_POS(i, j, ldc);
+      C[c_idx] = (beta == 0.0) ? 0.0 : C[c_idx] * beta;
+
+      #pragma unroll
+      for (int k = 0; k < p; k++) {
+          C[c_idx] += A[MAT_POS(i, k, lda)] * B[MAT_POS(k, j, ldb)];
+      }
+      C[c_idx] *= alpha;
+    }
+  }
+}
+
 __device__ void blk_gemm(const Numeric alpha,
-                         const Numeric *A, int lda,
-                         const Numeric *B, int ldb,
+                         const Numeric *A,
+                         const Numeric *B,
                          const Numeric beta,
-                         Numeric *C, int ldc) {
+                         Numeric *C) {
   int c_idx;
   #pragma unroll
   for (int i = 0; i < BLK_LEN; i++) {
@@ -89,12 +114,12 @@ __device__ void blk_gemm(const Numeric alpha,
     #pragma unroll
     for (int j = 0; j < BLK_LEN; j++) {
 
-      c_idx = MAT_POS(i, j, ldc);
+      c_idx = MAT_POS(i, j, BLK_LEN);
       C[c_idx] = (beta == 0.0) ? 0.0 : C[c_idx] * beta;
 
       #pragma unroll
       for (int k = 0; k < BLK_LEN; k++) {
-          C[c_idx] += A[MAT_POS(i, k, lda)] * B[MAT_POS(k, j, ldb)];
+          C[c_idx] += A[MAT_POS(i, k, BLK_LEN)] * B[MAT_POS(k, j, BLK_LEN)];
       }
       C[c_idx] *= alpha;
     }
@@ -477,7 +502,7 @@ __device__ int dssrfb(Numeric *A_kj,
   gemtmt(alpha, T, BLK_LEN, V, BLK_LEN, zero, Y, BLK_LEN);
 
   // Z = X = Y' * A_ij + X
-  blk_gemm(alpha, Y, BLK_LEN, A_ij, BLK_LEN, alpha, X, BLK_LEN);
+  blk_gemm(alpha, Y, A_ij, alpha, X);
 
   // A_kj += Z
   #pragma unroll
@@ -486,7 +511,7 @@ __device__ int dssrfb(Numeric *A_kj,
   }
 
   // A_ij = (V * Z) + A_ij
-  blk_gemm(alpha, V, BLK_LEN, X, BLK_LEN, alpha, A_ij, BLK_LEN);
+  blk_gemm(alpha, V, X, alpha, A_ij);
 
   return 0;
 }
