@@ -425,6 +425,65 @@ __device__ int dgeqt2(cublasHandle_t *handle, Numeric *A, Numeric *T, int m, int
   return 0;
 }
 
+/**
+  * Performs QR decomposition on a m-by-n matrix A. Computes upper-triangular matrix R,
+  * where A = QR and Householder vectors Y are stored in lower-diagonal portion of R.
+  * Uses Y to compute T, where Q = I + Y %*% T %*% t(Y).
+  *
+  * @param A m-by-n matrix.
+  * @param T n-by-n output matrix.
+  * @return R, Y, T, where A = QR and T for Q = I + Y %*% T %*% t(Y). Overwrites A with R and Y.
+  */
+__device__ int dblk_dgeqt2(Numeric *A, Numeric *T)
+{
+  Numeric w[DBL_BLK_LEN];
+  Numeric beta[BLK_LEN];
+
+  house_qr(A, beta, w, true, DBL_BLK_LEN, BLK_LEN);
+
+  // Restore householder vectors for YT Generation. Store diag in work vector.
+  int diag_idx;
+  for (int i = 0; i < BLK_LEN; i++) {
+    diag_idx = MAT_POS(i, i, DBL_BLK_LEN);
+    w[i] = A[diag_idx];
+    A[diag_idx] = 1.0;
+  }
+
+  house_yt(A, T, beta, DBL_BLK_LEN, BLK_LEN);
+
+  for (int i = 0; i < BLK_LEN; i++) {
+    diag_idx = MAT_POS(i, i, DBL_BLK_LEN);
+    A[diag_idx] = w[i];
+  }
+
+  return 0;
+}
+
+__device__ int blk_dgeqt2(Numeric *A, Numeric *T)
+{
+  Numeric w[BLK_LEN];
+  Numeric beta[BLK_LEN];
+
+  house_qr(A, beta, w, true, BLK_LEN, BLK_LEN);
+
+  // Restore householder vectors for YT Generation. Store diag in work vector.
+  int diag_idx;
+  for (int i = 0; i < BLK_LEN; i++) {
+    diag_idx = MAT_POS(i, i, BLK_LEN);
+    w[i] = A[diag_idx];
+    A[diag_idx] = 1.0;
+  }
+
+  house_yt(A, T, beta, BLK_LEN, BLK_LEN);
+
+  for (int i = 0; i < BLK_LEN; i++) {
+    diag_idx = MAT_POS(i, i, BLK_LEN);
+    A[diag_idx] = w[i];
+  }
+
+  return 0;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // DTSQT2
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -441,8 +500,6 @@ __device__ int dgeqt2(cublasHandle_t *handle, Numeric *A, Numeric *T, int m, int
   */
 __device__ int dtsqt2(cublasHandle_t *handle, Numeric *R, Numeric *A, Numeric *T, Numeric *RA_rowbind)
 {
-  int res;
-
   // Stores R into upper-portion of RA_rowbind. Zeroes lower-triangular portion.
   #pragma unroll
   for (int j = 0; j < BLK_LEN; j++) {
@@ -461,8 +518,7 @@ __device__ int dtsqt2(cublasHandle_t *handle, Numeric *R, Numeric *A, Numeric *T
     }
   }
 
-  res = dgeqt2(handle, RA_rowbind, T, DBL_BLK_LEN, BLK_LEN);
-  CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dgeqt2 on row-binded matrix");
+  dblk_dgeqt2(RA_rowbind, T);
 
   // Stores output R matrix into upper-triangular portion of R
   #pragma unroll
@@ -643,7 +699,7 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
   for (int k = 0; k < min_blk_d; k++) {
     Numeric *A_kk = &A[BLK_POS(k, k, blk_n)];
 
-    res = dgeqt2(&handle, A_kk, T, BLK_LEN, BLK_LEN);
+    res = blk_dgeqt2(A_kk, T);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dgeqt2");
 
     for (int n = (k + 1); n < blk_n; n++) {
@@ -742,7 +798,7 @@ __global__ void dgeqt2_dlarfb_row_kernel(Numeric *M, int lbdm, int k, int nr_blk
 
     M_kk = &M[BLK_POS(k, k, lbdm)];
 
-    res = dgeqt2(&handle, M_kk, T, BLK_LEN, BLK_LEN);
+    blk_dgeqt2(M_kk, T);
     // check res
 
     if (k < nr_blk_cols - 1) {
@@ -927,17 +983,14 @@ TileQR_house(cublasHandle_t *handle, Vector *in, Vector *out) {
     return 0;
 }
 
-__global__ void dgeqt2_kernel_test(Numeric *A, Numeric *T, int m, int n) {
-    cublasHandle_t handle;
-    int res = cublasCreate(&handle);
-
-    dgeqt2(&handle, A, T, m, n);
+__global__ void blk_dgeqt2_kernel_test(Numeric *A, Numeric *T) {
+    blk_dgeqt2(A, T);
 }
 
 extern "C"
 int
-TileQR_dgeqt2(cublasHandle_t *handle, Matrix *A, Matrix *T) {    
-    dgeqt2_kernel_test<<<1, 1>>>(A->data_d, T->data_d, A->nr_rows, A->nr_cols);
+TileQR_blk_dgeqt2(Matrix *A, Matrix *T) {    
+    blk_dgeqt2_kernel_test<<<1, 1>>>(A->data_d, T->data_d);
     return 0;
 }
 

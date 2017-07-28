@@ -22,7 +22,7 @@ TileQR_house(cublasHandle_t *handle, Vector *in, Vector *out);
 extern "C"
 #endif
 int
-TileQR_dgeqt2(cublasHandle_t *handle, Matrix *A, Matrix *T);
+TileQR_blk_dgeqt2(Matrix *A, Matrix *T);
 
 #ifdef __cplusplus
 extern "C"

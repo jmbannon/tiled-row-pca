@@ -50,7 +50,7 @@ int Test_TileQR_dgeqt2_internal(int m, int n)
 
     /////////////////////////////////////////////////
 
-    res = TileQR_dgeqt2(&handle, &A, &T);
+    res = TileQR_blk_dgeqt2(&A, &T);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to compute TileQR helper function dgeqt2");
 
     // Form Q using householder vectors in A, and T
