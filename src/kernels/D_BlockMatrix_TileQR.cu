@@ -88,6 +88,25 @@ __device__ void norm(int n, const Numeric *x, Numeric *result) {
   #endif
 }
 
+// householder vec mult
+__device__ void gevtm(int m, int p,
+                      const Numeric alpha,
+                      const Numeric *A, int lda,
+                      const Numeric *B, int ldb,
+                      Numeric *C, int ldc) {
+  int c_idx;
+  for (int i = 0; i < m; i++) {
+
+      c_idx = MAT_POS(i, 0, ldc);
+      C[c_idx] = A[MAT_POS(0, i, lda)];
+
+      for (int k = 1; k < p; k++) {
+          C[c_idx] += A[MAT_POS(k, i, lda)] * B[MAT_POS(k, 0, ldb)];
+      }
+      C[c_idx] *= alpha;
+  }
+}
+
 __device__ void gemtm(int m, int n, int p,
                       const Numeric alpha,
                       const Numeric *A, int lda,
@@ -344,7 +363,6 @@ __device__ int house_yt(Numeric *Y, Numeric *T, Numeric *beta, int m, int n)
 {
   // int res;
   Numeric alpha;
-  Numeric zero = 0.0;
   int v_idx;
   int z_idx;
   int y_idx;
@@ -358,7 +376,8 @@ __device__ int house_yt(Numeric *Y, Numeric *T, Numeric *beta, int m, int n)
     z_idx = MAT_POS(0, j, n);
 
     // Computes -2 * t(Y) * v_j = z' in an optimized way to ignore 0 elements in v_j. Stores it in z-location of T matrix.
-    gemtm(j, 1, m - j, alpha, &Y[y_idx], m, &Y[v_idx], m, zero, &T[z_idx], n);
+    gevtm(j, m - j, alpha, &Y[y_idx], m, &Y[v_idx], m, &T[z_idx], n);
+    //gemtm(j, 1, m - j, alpha, &Y[y_idx], m, &Y[v_idx], m, zero, &T[z_idx], n);
 
     // Computes T * z' using a triangular matrix-vector multiplication routine.
     trmv(j, T, n, &T[z_idx]);
@@ -384,21 +403,7 @@ __device__ int dblk_dgeqt2(Numeric *A, Numeric *T)
   Numeric beta[BLK_LEN];
 
   house_qr(A, beta, w, v, DBL_BLK_LEN, BLK_LEN);
-
-  // Restore householder vectors for YT Generation. Store diag in work vector.
-  int diag_idx;
-  for (int i = 0; i < BLK_LEN; i++) {
-    diag_idx = MAT_POS(i, i, DBL_BLK_LEN);
-    w[i] = A[diag_idx];
-    A[diag_idx] = 1.0;
-  }
-
   house_yt(A, T, beta, DBL_BLK_LEN, BLK_LEN);
-
-  for (int i = 0; i < BLK_LEN; i++) {
-    diag_idx = MAT_POS(i, i, DBL_BLK_LEN);
-    A[diag_idx] = w[i];
-  }
 
   return 0;
 }
@@ -410,21 +415,7 @@ __device__ int blk_dgeqt2(Numeric *A, Numeric *T)
   Numeric beta[BLK_LEN];
 
   house_qr(A, beta, w, v, BLK_LEN, BLK_LEN);
-
-  // Restore householder vectors for YT Generation. Store diag in work vector.
-  int diag_idx;
-  for (int i = 0; i < BLK_LEN; i++) {
-    diag_idx = MAT_POS(i, i, BLK_LEN);
-    w[i] = A[diag_idx];
-    A[diag_idx] = 1.0;
-  }
-
   house_yt(A, T, beta, BLK_LEN, BLK_LEN);
-
-  for (int i = 0; i < BLK_LEN; i++) {
-    diag_idx = MAT_POS(i, i, BLK_LEN);
-    A[diag_idx] = w[i];
-  }
 
   return 0;
 }
