@@ -77,28 +77,42 @@ __device__ void norm(int n, const Numeric *x, Numeric *result) {
   #endif
 }
 
-__device__ void gemm(const Numeric alpha,
-                     int m, int n, int p,
+__device__ void gemm(int m, int n, int p,
+                     const Numeric alpha,
                      const Numeric *A, int lda,
                      const Numeric *B, int ldb,
                      const Numeric beta,
                      Numeric *C, int ldc) {
   int c_idx;
-  #pragma unroll
   for (int i = 0; i < m; i++) {
-
-    #pragma unroll
     for (int j = 0; j < n; j++) {
 
       c_idx = MAT_POS(i, j, ldc);
       C[c_idx] = (beta == 0.0) ? 0.0 : C[c_idx] * beta;
 
-      #pragma unroll
       for (int k = 0; k < p; k++) {
           C[c_idx] += A[MAT_POS(i, k, lda)] * B[MAT_POS(k, j, ldb)];
       }
       C[c_idx] *= alpha;
     }
+  }
+}
+
+/**
+  * Computes c = alpha * t(A)b
+  */
+__device__ void gemtv(int m, int n,
+                      const Numeric alpha,
+                      const Numeric *A, int lda,
+                      const Numeric *b,
+                      Numeric *C) {
+  // int c_idx;
+  for (int j = 0; j < n; j++) {
+    C[j] = 0;
+    for (int i = 0; i < m; i++) {
+      C[j] += A[MAT_POS(i, j, lda)] * b[i];
+    }
+    C[j] *= alpha;
   }
 }
 
@@ -224,34 +238,20 @@ __device__ int house(Numeric *x, Numeric *v, int n)
   * @param beta Scalar used in the transformation.
   * @param w n-vector temporary storage
   */
-__device__ int house_row(cublasHandle_t *handle, Numeric *A, Numeric *v, Numeric *beta, Numeric *w, int m, int n, int ldm)
+__device__ int house_row(Numeric *A, Numeric *v, Numeric *beta, Numeric *w, int m, int n, int ldm)
 {
-    int res = 0;
-
+    const Numeric alpha = 1.0;
     norm(m, v, beta);
-    CHECK_CUBLAS_RETURN(res, "Failed to compute beta");
 
     *beta = -2.0 / (*beta * *beta);
 
     // Computes w
-    Numeric w_scalar = 0.0;
-    #if FLOAT_NUMERIC
-      res = cublasSgemv(*handle, CUBLAS_OP_T, m, n, beta, A, ldm, v, 1, &w_scalar, w, 1);
-    #else
-      res = cublasDgemv(*handle, CUBLAS_OP_T, m, n, beta, A, ldm, v, 1, &w_scalar, w, 1);
-    #endif
-    CHECK_CUBLAS_RETURN(res, "Failed to compute w");
+    gemtv(m, n, *beta, A, ldm, v, w);
 
     // Annihilate column of A: A = A + v * t(w)
-    Numeric scalar = 1.0;
-    #if FLOAT_NUMERIC
-      res = cublasSgemm(*handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, 1, &scalar, v, m, w, 1, &scalar, A, ldm);
-    #else
-      res = cublasDgemm(*handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, 1, &scalar, v, m, w, 1, &scalar, A, ldm);
-    #endif
-    CHECK_CUBLAS_RETURN(res, "Failed to annihilate column in A");
+    gemm(m, n, 1, alpha, v, m, w, 1, alpha, A, ldm);
 
-    return res;
+    return 0;
 }
 
 /**
@@ -263,7 +263,7 @@ __device__ int house_row(cublasHandle_t *handle, Numeric *A, Numeric *v, Numeric
   * @param w Work-space vector.
   * @param store_house True if householder vectors should be stored in lower-triangular portion of output. False otherwise.
   */
-__device__ int house_qr(cublasHandle_t *handle, Numeric *A, Numeric *beta, Numeric *w, bool store_house, int m, int n)
+__device__ int house_qr(Numeric *A, Numeric *beta, Numeric *w, bool store_house, int m, int n)
 {
   int res;
   Numeric *v;
@@ -274,12 +274,8 @@ __device__ int house_qr(cublasHandle_t *handle, Numeric *A, Numeric *beta, Numer
   for (int j = 0; j < n; j++) {
     int pos = MAT_POS(j, j, m);
 
-    cudaDeviceSynchronize();
-    res = house(&A[pos], &v[j], m - j);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to compute house");
-
-    res = house_row(handle, &A[pos], &v[j], &beta[j], &w[j], m - j, n - j, m);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to compute house_row");
+    house(&A[pos], &v[j], m - j);
+    house_row(&A[pos], &v[j], &beta[j], &w[j], m - j, n - j, m);
 
     // Copies householder vector into lower triangular portion of A
     if (store_house && j < m) {
@@ -380,7 +376,7 @@ __device__ int dgeqt2(cublasHandle_t *handle, Numeric *A, Numeric *T, int m, int
   res = cudaMalloc(&beta, n * sizeof(Numeric));
   CHECK_SUCCESS_RETURN(res);
 
-  res = house_qr(handle, A, beta, w, true, m, n);
+  res = house_qr(A, beta, w, true, m, n);
   CHECK_ZERO_ERROR_RETURN(res, "Failed to compute house_qr in dgeqt2");
 
   // Restore householder vectors for YT Generation. Store diag in work vector.
