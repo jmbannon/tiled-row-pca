@@ -442,14 +442,13 @@ __device__ int blk_dgeqt2(Numeric *A, Numeric *T)
 /**
   * Performs DGEQT2 on a row-binded matrix rbind(R, A).
   *
-  * @param handle cuBLAS handle
   * @param R n-by-n upper-triangular matrix to row-bind. May have non-zero elements in lower diagonal. Stores output R matrix from DGEQT2 here.
   * @param A n-by-n matrix to row-bind. Stores lower portion of householder vectors from DGEQT2 in here. The 'hessianberg' portion of the householder
   *          vectors is an identity matrix, so there is no need to store that.
   * @param T n-by-n output matrix.
   * @param RA_rowbind 2n-by-n work matrix to store the row-bind and compute DGEQT2 on.
   */
-__device__ int dtsqt2(cublasHandle_t *handle, Numeric *R, Numeric *A, Numeric *T, Numeric *RA_rowbind)
+__device__ int dtsqt2(Numeric *R, Numeric *A, Numeric *T, Numeric *RA_rowbind)
 {
   // Stores R into upper-portion of RA_rowbind. Zeroes lower-triangular portion.
   #pragma unroll
@@ -668,7 +667,7 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
         T[i] = 0;  
       }
 
-      res = dtsqt2(&handle, A_kk, A_mk, T, Rbind);
+      res = dtsqt2(A_kk, A_mk, T, Rbind);
       CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dtsqt2");
 
       for (int n = (k + 1); n < blk_n; n++) {
@@ -777,34 +776,20 @@ __global__ void dssrfb_kernel(Numeric *M, int lbdm,
 
 __global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m, int nr_blk_cols) {
     Numeric *T;
-    Numeric *Rbind;
-    cublasHandle_t handle;
+    Numeric Rbind[2 * BLK_SIZE];
 
-    int res = cublasCreate(&handle);
+    int res = cudaMalloc(&T, BLK_SIZE_MEM);
     // check res
-
-    res = cudaMalloc(&T, BLK_SIZE_MEM);
-    // check res
-
-    res = cudaMalloc(&Rbind, 2 * BLK_SIZE_MEM);
-    //check res
 
     for (int i = 0; i < BLK_SIZE; i++) {
         T[i] = 0;
-        Rbind[i] = 0;    
-    }
-
-    for (int i = BLK_SIZE; i < 2*BLK_SIZE; i++) {
-        Rbind[i] = 0;
     }
 
     Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
     Numeric *A_kk = &M[BLK_POS(k, k, lbdm)];
 
-    res = dtsqt2(&handle, A_kk, A_mk, T, Rbind);
+    res = dtsqt2(A_kk, A_mk, T, Rbind);
     // check res
-
-    cudaDeviceSynchronize();
 
     if (k != nr_blk_cols - 1) {
       dssrfb_kernel<<<1, nr_blk_cols - k - 1>>>(M, lbdm, k, m, A_mk, T);
@@ -812,8 +797,6 @@ __global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m, int
 
     cudaDeviceSynchronize();
     cudaFree(T);
-    cudaFree(Rbind);
-    cublasDestroy(handle);
 }
 
 // extern "C"
