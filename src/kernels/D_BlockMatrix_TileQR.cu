@@ -18,10 +18,8 @@ __device__ void blk_trmmr(const Numeric alpha,
                           Numeric *C) {
   register int c_idx;
 
-  #pragma unroll
   for (int i = 0; i < BLK_LEN; i++) {
 
-    #pragma unroll
     for (int j = 0; j < BLK_LEN; j++) {
 
       c_idx = MAT_POS(i, j, BLK_LEN);
@@ -45,10 +43,8 @@ __device__ void blk_trmml(const Numeric alpha,
                           Numeric *C) {
   register int c_idx;
 
-  #pragma unroll
   for (int i = 0; i < BLK_LEN; i++) {
 
-    #pragma unroll
     for (int j = 0; j < BLK_LEN; j++) {
 
       c_idx = MAT_POS(i, j, BLK_LEN);
@@ -172,16 +168,13 @@ __device__ void blk_gemm(const Numeric alpha,
                          const Numeric beta,
                          Numeric *C) {
   int c_idx;
-  #pragma unroll
   for (int i = 0; i < BLK_LEN; i++) {
 
-    #pragma unroll
     for (int j = 0; j < BLK_LEN; j++) {
 
       c_idx = MAT_POS(i, j, BLK_LEN);
       C[c_idx] = (beta == 0.0) ? 0.0 : C[c_idx] * beta;
 
-      #pragma unroll
       for (int k = 0; k < BLK_LEN; k++) {
           C[c_idx] += A[MAT_POS(i, k, BLK_LEN)] * B[MAT_POS(k, j, BLK_LEN)];
       }
@@ -196,16 +189,13 @@ __device__ void gemtm(const Numeric alpha,
                       const Numeric beta,
                       Numeric *C, int ldc) {
   int c_idx;
-  #pragma unroll
   for (int i = 0; i < BLK_LEN; i++) {
 
-    #pragma unroll
     for (int j = 0; j < BLK_LEN; j++) {
 
       c_idx = MAT_POS(i, j, ldc);
       C[c_idx] = (beta == 0.0) ? 0.0 : C[c_idx] * beta;
 
-      #pragma unroll
       for (int k = 0; k < BLK_LEN; k++) {
           C[c_idx] += A[MAT_POS(k, i, lda)] * B[MAT_POS(k, j, ldb)];
       }
@@ -221,16 +211,13 @@ __device__ void gemtmt(const Numeric alpha,
                        Numeric *C, int ldc) {
   int c_idx;
 
-  #pragma unroll
   for (int i = 0; i < BLK_LEN; i++) {
 
-    #pragma unroll
     for (int j = 0; j < BLK_LEN; j++) {
 
       c_idx = MAT_POS(i, j, ldc);
       C[c_idx] = (beta == 0.0) ? 0.0 : C[c_idx] * beta;
 
-      #pragma unroll
       for (int k = 0; k < BLK_LEN; k++) {
           C[c_idx] += A[MAT_POS(k, i, lda)] * B[MAT_POS(j, k, ldb)];
       }
@@ -435,18 +422,14 @@ __device__ int blk_dgeqt2(Numeric *A, Numeric *T)
 __device__ int dtsqt2(Numeric *R, Numeric *A, Numeric *T, Numeric *RA_rowbind)
 {
   // Stores R into upper-portion of RA_rowbind. Zeroes lower-triangular portion.
-  #pragma unroll
   for (int j = 0; j < BLK_LEN; j++) {
-    #pragma unroll
     for (int i = 0; i < BLK_LEN; i++) {
       RA_rowbind[MAT_POS(i, j, DBL_BLK_LEN)] = (i > j) ? 0.0 : R[MAT_POS(i, j, BLK_LEN)];
     }
   }
 
   // Stores A into lower-portion of RA_rowbind.
-  #pragma unroll
   for (int j = 0; j < BLK_LEN; j++) {
-    #pragma unroll
     for (int i = 0; i < BLK_LEN; i++) {
       RA_rowbind[MAT_POS(BLK_LEN + i, j, DBL_BLK_LEN)] = A[MAT_POS(i, j, BLK_LEN)];
     }
@@ -455,7 +438,6 @@ __device__ int dtsqt2(Numeric *R, Numeric *A, Numeric *T, Numeric *RA_rowbind)
   dblk_dgeqt2(RA_rowbind, T);
 
   // Stores output R matrix into upper-triangular portion of R
-  #pragma unroll
   for (int j = 0; j < BLK_LEN; j++) {
     for (int i = 0; i <= j; i++) {
       R[MAT_POS(i, j, BLK_LEN)] = RA_rowbind[MAT_POS(i, j, DBL_BLK_LEN)];
@@ -463,9 +445,7 @@ __device__ int dtsqt2(Numeric *R, Numeric *A, Numeric *T, Numeric *RA_rowbind)
   }
 
   // Stores output householder vectors into A.
-  #pragma unroll
   for (int j = 0; j < BLK_LEN; j++) {
-    #pragma unroll
     for (int i = 0; i < BLK_LEN; i++) {
       A[MAT_POS(i, j, BLK_LEN)] = RA_rowbind[MAT_POS(BLK_LEN + i, j, DBL_BLK_LEN)];
     }
@@ -511,7 +491,6 @@ __device__ int dssrfb(Numeric *A_kj,
   blk_gemm(alpha, Y, A_ij, alpha, X);
 
   // A_kj += Z
-  #pragma unroll
   for (int i = 0; i < BLK_SIZE; i++) {
     A_kj[i] += X[i];
   }
@@ -548,7 +527,6 @@ __device__ int house_qr_q(Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_)
 
     // Calculates Q = I + Q
     //              = I + (Y * T * t(Y))
-    #pragma unroll
     for (int i = 0; i < BLK_SIZE; i += BLK_LEN + 1) {
       Q[i] += 1.0;
     }
@@ -580,7 +558,6 @@ __device__ int dlarfb(Numeric *A, Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q
 
   gemtm(alpha, Q, BLK_LEN, A, BLK_LEN, zero, Q_, BLK_LEN);
 
-  #pragma unroll
   for (int i = 0; i < BLK_SIZE; i++) {
     A[i] = Q_[i];
   }
@@ -745,7 +722,6 @@ __global__ void dtsqt2_kernel(Numeric *M, int lbdm, int k, int m, int nr_blk_col
   Numeric *A_kk = &M[BLK_POS(k, k, lbdm)];
   Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
 
-  #pragma unroll
   for (int i = 0; i < BLK_SIZE; i++) {
     T[i] = 0;
   }
@@ -766,7 +742,6 @@ __global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m, int
     if (threadIdx.x == 0) {
       Numeric Rbind[2 * BLK_SIZE];
 
-      #pragma unroll
       for (int i = 0; i < BLK_SIZE; i++) {
         T[i] = 0;
       }
