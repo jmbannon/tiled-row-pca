@@ -13,7 +13,7 @@
 extern "C"
 #endif
 int
-TileQR_house(cublasHandle_t *handle, Vector *in, Vector *out);
+TileQR_house(Vector *in, Vector *out);
 
 /**
   * Wrapper for single-threaded dgeqt2 kernel. Use only for testing.

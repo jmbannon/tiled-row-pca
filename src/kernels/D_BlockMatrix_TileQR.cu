@@ -6,7 +6,6 @@
 #include "../BlockMatrix.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include <cublas_v2.h>
 #include <stdio.h>
 #include <stdbool.h>
 
@@ -530,7 +529,6 @@ __device__ int dssrfb(Numeric *A_kj,
 /**
   * Computes Q = I + (Y * T * t(Y))
   *
-  * @param handle cuBLAS handle
   * @param Y m-by-n Hessianberg matrix containing householder vectors in lower portion.
   * @param T n-by-n Upper-triangular matrix
   * @param Q_ m-by-n work matrix to store Y * T
@@ -604,21 +602,17 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
 
   int min_blk_d = blk_m > blk_n ? blk_n : blk_m;
 
-  cublasHandle_t handle;
-  res = cublasCreate(&handle);
-  CHECK_CUBLAS_RETURN(res, "Failed to init handle");
-
   res = cudaMalloc(&T, BLK_SIZE_MEM);
-  CHECK_CUBLAS_RETURN(res, "Failed to init T");
+  CHECK_SUCCESS_RETURN(res);
 
   res = cudaMalloc(&Rbind, 2 * BLK_SIZE_MEM);
-  CHECK_CUBLAS_RETURN(res, "Failed to init Rbind");
+  CHECK_SUCCESS_RETURN(res);
 
   res = cudaMalloc(&Q, BLK_SIZE_MEM);
-  CHECK_CUBLAS_RETURN(res, "Failed to init Q");
+  CHECK_SUCCESS_RETURN(res);
 
   res = cudaMalloc(&Q_, BLK_SIZE_MEM);
-  CHECK_CUBLAS_RETURN(res, "Failed to init Q'");
+  CHECK_SUCCESS_RETURN(res);
 
   for (int i = 0; i < BLK_SIZE; i++) {
     T[i] = 0;
@@ -691,12 +685,10 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
   *                              = t(I + (Y * T * t(Y))) * A
   * where Q is from a diagonal tile P, where P = QR, and A is an adjacent tile to the right of P.
   *
-  * @param handle cuBLAS handle
   * @param A m-by-n matrix to multiply and override. Adjacent to the source tile of Q.
   * @param Y m-by-n Hessianberg matrix holding householder vectors.
   * @param T n-by-n matrix.
   *
-  * res = dlarfb(&handle, A_kn, A_kk, T, Q, Q_, BLK_LEN, BLK_LEN);
   */
 __global__ void dlarfb_kernel(Numeric *M, int lbdm, int k, Numeric *T) {
     Numeric Q[BLK_SIZE];
@@ -708,7 +700,6 @@ __global__ void dlarfb_kernel(Numeric *M, int lbdm, int k, Numeric *T) {
     dlarfb(M_kn, M_kk, T, Q, Q_);
 }
 
-
 /**
  * Performs DGEQT2 on a diagonal block of the BlockMatrix A.
  *
@@ -718,28 +709,34 @@ __global__ void dlarfb_kernel(Numeric *M, int lbdm, int k, Numeric *T) {
  * @param k Block row and column (diagonal block) to perform DGEQT2 on
  */
 __global__ void dgeqt2_dlarfb_row_kernel(Numeric *M, int lbdm, int k, int nr_blk_rows, int nr_blk_cols) {
-    Numeric *T;
-    Numeric *M_kk;
+    __shared__ Numeric T[BLK_SIZE];
+    Numeric Q[BLK_SIZE];
+    Numeric Q_[BLK_SIZE];
 
-    res = cudaMalloc(&T, BLK_SIZE_MEM);
-    for (int i = 0; i < BLK_SIZE; i++) {
+    Numeric *M_kk = &M[BLK_POS(k, k, lbdm)];
+    Numeric *M_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
+
+    if (threadIdx.x == 0) {
+      for (int i = 0; i < BLK_SIZE; i++) {
         T[i] = 0;
-    }
-    // check res
+      }
 
-    M_kk = &M[BLK_POS(k, k, lbdm)];
+      blk_dgeqt2(M_kk, T);
+    }
+    __syncthreads();
+    dlarfb(M_kn, M_kk, T, Q, Q_);
+}
+
+__global__ void dgeqt2_kernel(Numeric *M, int lbdm, int k, int nr_blk_rows, int nr_blk_cols) {
+    Numeric T[BLK_SIZE];
+    Numeric *M_kk = &M[BLK_POS(k, k, lbdm)];
+    for (int i = 0; i < BLK_SIZE; i++) {
+      T[i] = 0;
+    }
 
     blk_dgeqt2(M_kk, T);
-    // check res
-
-    if (k < nr_blk_cols - 1) {
-      dlarfb_kernel<<<1, nr_blk_cols - k - 1>>>(M, lbdm, k, T);
-    }
-
-    cudaDeviceSynchronize();
-
-    cudaFree(T);
 }
+
 
 __global__ void dtsqt2_kernel(Numeric *M, int lbdm, int k, int m, int nr_blk_cols) {
   Numeric Rbind[2 * BLK_SIZE];
@@ -782,34 +779,6 @@ __global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m, int
     dssrfb(A_kn, A_mn, A_mk, T, X, Y);
 }
 
-// extern "C"
-// int
-// BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM)
-// {    
-//   int res = 0;
-//   Numeric *M = BlkM->data_d;
-
-//   int blk_m = BlkM->nr_blk_rows;
-//   int blk_n = BlkM->nr_blk_cols;
-
-//   int min_blk_d = blk_m > blk_n ? blk_n : blk_m;
-
-//   for (int k = 0; k < min_blk_d; k++) {
-//     dgeqt2_dlarfb_row_kernel<<<1,1>>>(M, blk_n, k, blk_m, blk_n); // check res
-//     CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dgeqt2");
-
-//     cudaDeviceSynchronize();
-//     for (int m = (k + 1); m < blk_m; m++) {
-//       dtsqt2_dssrfb_row_kernel<<<1, 1>>>(M, blk_n, k, m, blk_n); // check res
-//       CHECK_ZERO_ERROR_RETURN(res, "Failed to compute row kernel");
-//       cudaDeviceSynchronize();
-//     }
-//   }
-
-//   cudaDeviceSynchronize();
-//   return 0;
-// }
-
 extern "C"
 int
 BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM)
@@ -829,7 +798,11 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM)
   int j_start = 0;
   int *dl = (int *)calloc(min_blk_d, sizeof(int));
   
-  dgeqt2_dlarfb_row_kernel<<<1,1>>>(M, blk_n, 0, blk_m, blk_n);
+  if (blk_n != 1) {
+    dgeqt2_dlarfb_row_kernel<<<1, blk_n - 1>>>(M, blk_n, 0, blk_m, blk_n);
+  } else {
+    dgeqt2_kernel<<<1,1>>>(M, blk_n, 0, blk_m, blk_n);
+  }
   dl[i] = i + 1;
   ++i;
 
@@ -837,7 +810,11 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM)
   
   while (dgeqt2_running || dlarfb_running) {
     if (i < min_blk_d && i < dl[i - 1]) {
-      dgeqt2_dlarfb_row_kernel<<<1,1>>>(M, blk_n, i, blk_m, blk_n); // check res
+      if (i < blk_n - 1) {
+        dgeqt2_dlarfb_row_kernel<<<1, blk_n - i - 1>>>(M, blk_n, i, blk_m, blk_n); // check res
+      } else {
+        dgeqt2_kernel<<<1, 1>>>(M, blk_n, i, blk_m, blk_n);
+      }
       ran_dgeqt2 = true;
     } else if (i == min_blk_d) {
       dgeqt2_running = false;
@@ -899,7 +876,7 @@ __global__ void house_kernel(Numeric *x, Numeric *v, int n) {
 
 extern "C"
 int
-TileQR_house(cublasHandle_t *handle, Vector *in, Vector *out) {    
+TileQR_house(Vector *in, Vector *out) {    
     house_kernel<<<1, 1>>>(in->data_d, out->data_d, in->nr_elems);
     return 0;
 }

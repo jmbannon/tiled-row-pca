@@ -49,6 +49,6 @@ int TileQR(int m, int n, double *runtime_ms)
     return 0;
 }
 
-int TileQR_1000_1000(double *runtime_ms) {
-    return TileQR(1024, 256, runtime_ms);
+int TileQR_30k_4k(double *runtime_ms) {
+    return TileQR(30000, 4000, runtime_ms);
 }
