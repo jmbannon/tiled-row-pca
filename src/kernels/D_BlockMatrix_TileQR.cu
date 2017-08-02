@@ -89,7 +89,7 @@ __device__ void gevtm(int m, int p,
                       const Numeric *A, int lda,
                       const Numeric *B, int ldb,
                       Numeric *C, int ldc) {
-  int c_idx;
+  register int c_idx;
   for (int i = 0; i < m; i++) {
 
       c_idx = MAT_POS(i, 0, ldc);
@@ -108,7 +108,7 @@ __device__ void gemtm(int m, int n, int p,
                       const Numeric *B, int ldb,
                       const Numeric beta,
                       Numeric *C, int ldc) {
-  int c_idx;
+  register int c_idx;
   for (int i = 0; i < m; i++) {
     for (int j = 0; j < n; j++) {
 
@@ -129,7 +129,7 @@ __device__ void gemm(int m, int n, int p,
                      const Numeric *B, int ldb,
                      const Numeric beta,
                      Numeric *C, int ldc) {
-  int c_idx;
+  register int c_idx;
   for (int i = 0; i < m; i++) {
     for (int j = 0; j < n; j++) {
 
@@ -167,7 +167,7 @@ __device__ void blk_gemm(const Numeric alpha,
                          const Numeric *B,
                          const Numeric beta,
                          Numeric *C) {
-  int c_idx;
+  register int c_idx;
   for (int i = 0; i < BLK_LEN; i++) {
 
     for (int j = 0; j < BLK_LEN; j++) {
@@ -188,7 +188,7 @@ __device__ void gemtm(const Numeric alpha,
                       const Numeric *B, int ldb,
                       const Numeric beta,
                       Numeric *C, int ldc) {
-  int c_idx;
+  register int c_idx;
   for (int i = 0; i < BLK_LEN; i++) {
 
     for (int j = 0; j < BLK_LEN; j++) {
@@ -209,7 +209,7 @@ __device__ void gemtmt(const Numeric alpha,
                        const Numeric *B, int ldb,
                        const Numeric beta,
                        Numeric *C, int ldc) {
-  int c_idx;
+  register int c_idx;
 
   for (int i = 0; i < BLK_LEN; i++) {
 
@@ -239,7 +239,7 @@ __device__ void gemtmt(const Numeric alpha,
   *
   * @see{https://www.youtube.com/watch?v=d-yPM-bxREs}
   */
-__device__ int house(Numeric *x, Numeric *v, int n)
+__device__ void house(Numeric *x, Numeric *v, int n)
 {
     Numeric x_norm;
     for (int i = 0; i < n; i++) {
@@ -257,8 +257,6 @@ __device__ int house(Numeric *x, Numeric *v, int n)
       }
     }
     v[0] = 1.0;
-
-    return 0;
 }
 
 /**
@@ -275,9 +273,8 @@ __device__ int house(Numeric *x, Numeric *v, int n)
   * @param beta Scalar used in the transformation.
   * @param w n-vector temporary storage
   */
-__device__ int house_row(Numeric *A, Numeric *v, Numeric *beta, Numeric *w, int m, int n, int ldm)
+__device__ void house_row(Numeric *A, Numeric *v, Numeric *beta, Numeric *w, int m, int n, int ldm)
 {
-    const Numeric alpha = 1.0;
     norm(m, v, beta);
 
     *beta = -2.0 / (*beta * *beta);
@@ -286,9 +283,7 @@ __device__ int house_row(Numeric *A, Numeric *v, Numeric *beta, Numeric *w, int 
     gemtv(m, n, *beta, A, ldm, v, w);
 
     // Annihilate column of A: A = A + v * t(w)
-    gemm(m, n, 1, alpha, v, m, w, 1, alpha, A, ldm);
-
-    return 0;
+    gemm(m, n, 1, 1.0, v, m, w, 1, 1.0, A, ldm);
 }
 
 /**
@@ -301,10 +296,11 @@ __device__ int house_row(Numeric *A, Numeric *v, Numeric *beta, Numeric *w, int 
   * @param v Work-space vector.
   * @param store_house True if householder vectors should be stored in lower-triangular portion of output. False otherwise.
   */
-__device__ int house_qr(Numeric *A, Numeric *beta, Numeric *w, Numeric *v, int m, int n)
+__device__ void house_qr(Numeric *A, Numeric *beta, Numeric *w, Numeric *v, int m, int n)
 {
+  register int pos;
   for (int j = 0; j < n; j++) {
-    int pos = MAT_POS(j, j, m);
+    pos = MAT_POS(j, j, m);
 
     house(&A[pos], &v[j], m - j);
     house_row(&A[pos], &v[j], &beta[j], &w[j], m - j, n - j, m);
@@ -316,8 +312,6 @@ __device__ int house_qr(Numeric *A, Numeric *beta, Numeric *w, Numeric *v, int m
       }
     }
   }
-
-  return 0;
 }
 
 
@@ -345,9 +339,8 @@ __device__ int house_qr(Numeric *A, Numeric *beta, Numeric *w, Numeric *v, int m
   * @param Y m-by-n matrix where lower-triangular + diag portion holds householder vectors and the upper-triangular portion holds the R matrix from QR.
   * @param T n-by-n output matrix to store T
   */
-__device__ int house_yt(Numeric *Y, Numeric *T, Numeric *beta, int m, int n)
+__device__ void house_yt(Numeric *Y, Numeric *T, Numeric *beta, int m, int n)
 {
-  // int res;
   Numeric alpha;
   int v_idx;
   int z_idx;
@@ -363,14 +356,12 @@ __device__ int house_yt(Numeric *Y, Numeric *T, Numeric *beta, int m, int n)
 
     // Computes -2 * t(Y) * v_j = z' in an optimized way to ignore 0 elements in v_j. Stores it in z-location of T matrix.
     gevtm(j, m - j, alpha, &Y[y_idx], m, &Y[v_idx], m, &T[z_idx], n);
-    //gemtm(j, 1, m - j, alpha, &Y[y_idx], m, &Y[v_idx], m, zero, &T[z_idx], n);
 
     // Computes T * z' using a triangular matrix-vector multiplication routine.
     trmv(j, T, n, &T[z_idx]);
 
     T[MAT_POS(j, j, n)] = beta[j];
   }
-  return 0;
 }
 
 /**
@@ -382,7 +373,7 @@ __device__ int house_yt(Numeric *Y, Numeric *T, Numeric *beta, int m, int n)
   * @param T n-by-n output matrix.
   * @return R, Y, T, where A = QR and T for Q = I + Y %*% T %*% t(Y). Overwrites A with R and Y.
   */
-__device__ int dblk_dgeqt2(Numeric *A, Numeric *T)
+__device__ void dblk_dgeqt2(Numeric *A, Numeric *T)
 {
   Numeric w[DBL_BLK_LEN];
   Numeric v[DBL_BLK_LEN];
@@ -390,11 +381,9 @@ __device__ int dblk_dgeqt2(Numeric *A, Numeric *T)
 
   house_qr(A, beta, w, v, DBL_BLK_LEN, BLK_LEN);
   house_yt(A, T, beta, DBL_BLK_LEN, BLK_LEN);
-
-  return 0;
 }
 
-__device__ int blk_dgeqt2(Numeric *A, Numeric *T)
+__device__ void blk_dgeqt2(Numeric *A, Numeric *T)
 {
   Numeric w[BLK_LEN];
   Numeric v[BLK_LEN];
@@ -402,8 +391,6 @@ __device__ int blk_dgeqt2(Numeric *A, Numeric *T)
 
   house_qr(A, beta, w, v, BLK_LEN, BLK_LEN);
   house_yt(A, T, beta, BLK_LEN, BLK_LEN);
-
-  return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -419,7 +406,7 @@ __device__ int blk_dgeqt2(Numeric *A, Numeric *T)
   * @param T n-by-n output matrix.
   * @param RA_rowbind 2n-by-n work matrix to store the row-bind and compute DGEQT2 on.
   */
-__device__ int dtsqt2(Numeric *R, Numeric *A, Numeric *T, Numeric *RA_rowbind)
+__device__ void dtsqt2(Numeric *R, Numeric *A, Numeric *T, Numeric *RA_rowbind)
 {
   // Stores R into upper-portion of RA_rowbind. Zeroes lower-triangular portion.
   for (int j = 0; j < BLK_LEN; j++) {
@@ -450,8 +437,6 @@ __device__ int dtsqt2(Numeric *R, Numeric *A, Numeric *T, Numeric *RA_rowbind)
       A[MAT_POS(i, j, BLK_LEN)] = RA_rowbind[MAT_POS(BLK_LEN + i, j, DBL_BLK_LEN)];
     }
   }
-
-  return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -471,7 +456,7 @@ __device__ int dtsqt2(Numeric *R, Numeric *A, Numeric *T, Numeric *RA_rowbind)
   *
   *
   */
-__device__ int dssrfb(Numeric *A_kj,
+__device__ void dssrfb(Numeric *A_kj,
                       Numeric *A_ij,
                       Numeric *V,
                       Numeric *T,
@@ -497,8 +482,6 @@ __device__ int dssrfb(Numeric *A_kj,
 
   // A_ij = (V * Z) + A_ij
   blk_gemm(alpha, V, X, alpha, A_ij);
-
-  return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -513,25 +496,20 @@ __device__ int dssrfb(Numeric *A_kj,
   * @param Q_ m-by-n work matrix to store Y * T
   * @return Q m-by-m output matrix
   */
-__device__ int house_qr_q(Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_)
-{
-    // int res;
-    Numeric alpha = 1.0;
-    
+__device__ void house_qr_q(Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_)
+{    
     // Calculates Q' = Y * T
-    blk_trmml(alpha, Y, T, Q_);
+    blk_trmml(1.0, Y, T, Q_);
 
     // Calculates Q = Q' * t(Y)
     //              = Y * T * t(Y)
-    blk_trmmr(alpha, Q_, Y, Q);
+    blk_trmmr(1.0, Q_, Y, Q);
 
     // Calculates Q = I + Q
     //              = I + (Y * T * t(Y))
     for (int i = 0; i < BLK_SIZE; i += BLK_LEN + 1) {
       Q[i] += 1.0;
     }
-
-    return 0;
 }
 
 
@@ -546,23 +524,15 @@ __device__ int house_qr_q(Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_)
   * @param Q m-by-m matrix to store Q.
   * @param Q_ m-by-n work matrix.
   */
-__device__ int dlarfb(Numeric *A, Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_)
+__device__ void dlarfb(Numeric *A, Numeric *Y, Numeric *T, Numeric *Q, Numeric *Q_)
 {
-  int res;
+  house_qr_q(Y, T, Q, Q_);
+  gemtm(1.0, Q, BLK_LEN, A, BLK_LEN, 0.0, Q_, BLK_LEN);
 
-  res = house_qr_q(Y, T, Q, Q_);
-  CHECK_ZERO_ERROR_RETURN(res, "Failed to compute house_qr_q");
-
-  const Numeric zero = 0.0;
-  const Numeric alpha = 1.0;
-
-  gemtm(alpha, Q, BLK_LEN, A, BLK_LEN, zero, Q_, BLK_LEN);
-
+  #pragma unroll
   for (int i = 0; i < BLK_SIZE; i++) {
     A[i] = Q_[i];
   }
-
-  return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -605,15 +575,13 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
   for (int k = 0; k < min_blk_d; k++) {
     Numeric *A_kk = &A[BLK_POS(k, k, blk_n)];
 
-    res = blk_dgeqt2(A_kk, T);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dgeqt2");
+    blk_dgeqt2(A_kk, T);
 
     for (int n = (k + 1); n < blk_n; n++) {
 
       Numeric *A_kn = &A[BLK_POS(k, n, blk_n)];
 
-      res = dlarfb(A_kn, A_kk, T, Q, Q_);
-      CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dlarfb");
+      dlarfb(A_kn, A_kk, T, Q, Q_);
     }
 
     for (int m = (k + 1); m < blk_m; m++) {
@@ -623,15 +591,13 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
         T[i] = 0;  
       }
 
-      res = dtsqt2(A_kk, A_mk, T, Rbind);
-      CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dtsqt2");
+      dtsqt2(A_kk, A_mk, T, Rbind);
 
       for (int n = (k + 1); n < blk_n; n++) {
         Numeric *A_kn = &A[BLK_POS(k, n, blk_n)];
         Numeric *A_mn = &A[BLK_POS(m, n, blk_n)];
 
-        res = dssrfb(A_kn, A_mn, A_mk, T, Q, Q_);
-        CHECK_ZERO_ERROR_RETURN(res, "Failed to compute dssrfb");
+        dssrfb(A_kn, A_mn, A_mk, T, Q, Q_);
 
         cudaDeviceSynchronize();
       }

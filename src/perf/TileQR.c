@@ -50,8 +50,6 @@ int CudaQR(int m, int n, double *runtime_ms)
     res = cudaMalloc((void **)&tau, min * sizeof(Numeric));
     CHECK_ZERO_ERROR_RETURN(res, "Failed to init tau");
 
-    cudaProfilerStart();
-
     Timer_start(&t);
 
     #if FLOAT_NUMERIC
@@ -68,8 +66,6 @@ int CudaQR(int m, int n, double *runtime_ms)
     Timer_end(&t);
 
     *runtime_ms = Timer_dur_sec(&t);
-
-    cudaProfilerStop();
 
     res = Matrix_free_device(&A);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to free block matrix from device");
