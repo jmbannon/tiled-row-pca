@@ -677,6 +677,8 @@ __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
           blk_dgeqt2(M_kk, T);
       }
       __syncthreads();
+
+      //printf("dlarfb using %d threads\n", nr_blk_cols - k - 1);
       if (k < nr_blk_cols - 1 && threadIdx.x < nr_blk_cols - k - 1) {
           Numeric *M_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
 
@@ -737,9 +739,11 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
   int min_blk_d = blk_m > blk_n ? blk_n : blk_m;
   Numeric *M = BlkM->data_d;
 
+  // printf("blocks: %d, threads: %d\n", 1, blk_n - 1);
   dgeqt2_master<<<1, blk_n - 1>>>(M, blk_n, 0, blk_n);
   cudaDeviceSynchronize();
 
+  // printf("blocks: %d, threads: %d\n", 1, blk_n - 1);
   dtsqt2_master<<<1, blk_n - 1>>>(M, blk_n, 0, 1, blk_n);
   cudaDeviceSynchronize();
 
@@ -747,10 +751,12 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
   while (i < min_blk_d && i < blk_n) {
     int blocks = (i + i) < blk_m ? i + 1 : blk_m - i;
 
+    // printf("blocks: %d, threads: %d\n", blocks, blk_n - i - 1 + blocks);
     dgeqt2_master<<<blocks, blk_n - i - 1 + blocks>>>(M, blk_n, i, blk_n);
     cudaDeviceSynchronize();
 
     blocks = (i + i + 1) < blk_m ? i + 1 : blk_m - i - 1;
+    // printf("blocks: %d, threads: %d\n", blocks, blk_n - i - 1 + blocks);
     dtsqt2_master<<<blocks, blk_n - i - 1 + blocks>>>(M, blk_n, i, i + 1, blk_n);
     cudaDeviceSynchronize();
     ++i;
@@ -759,6 +765,7 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
   ++i;
   while (i < blk_m) {
     int blocks = (i + blk_n) <= blk_m ? min_blk_d : blk_m - i;
+    // printf("blocks: %d, threads: %d\n", blocks, blocks);
     dtsqt2_master<<<blocks, blocks>>>(M, blk_n, blk_n - 1, i, blk_n);
     cudaDeviceSynchronize();
     ++i;

@@ -120,3 +120,7 @@ int Test_TileQR_67_1027_mt() {
 int Test_TileQR_71_29_mt() {
     return Test_TileQR(29, 14, 500, 666, true);
 }
+
+int Test_TileQR_20k_4k_mt() {
+    return Test_TileQR(30000, 1000, 500, 666, true);
+}

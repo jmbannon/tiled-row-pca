@@ -19,6 +19,7 @@ int Test_TileQR_17_21_mt();
 int Test_TileQR_1027_67_mt();
 int Test_TileQR_67_1027_mt();
 int Test_TileQR_71_29_mt();
+int Test_TileQR_20k_4k_mt();
 
 int TestAll();
 
