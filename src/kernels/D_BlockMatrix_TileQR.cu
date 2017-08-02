@@ -657,103 +657,6 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
 // Parallel QR
 //////////////////////
 
-  /**
-  * Multiplies a matrix A s.t. A = t(Q) * A
-  *                              = t(I + (Y * T * t(Y))) * A
-  * where Q is from a diagonal tile P, where P = QR, and A is an adjacent tile to the right of P.
-  *
-  * @param A m-by-n matrix to multiply and override. Adjacent to the source tile of Q.
-  * @param Y m-by-n Hessianberg matrix holding householder vectors.
-  * @param T n-by-n matrix.
-  *
-  */
-__global__ void dlarfb_kernel(Numeric *M, int lbdm, int k, Numeric *T) {
-    Numeric Q[BLK_SIZE];
-    Numeric Q_[BLK_SIZE];
-
-    Numeric *M_kk = &M[BLK_POS(k, k, lbdm)];
-    Numeric *M_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
-
-    dlarfb(M_kn, M_kk, T, Q, Q_);
-}
-
-/**
- * Performs DGEQT2 on a diagonal block of the BlockMatrix A.
- *
- * @param A Pointer to start of A
- * @param ldba Leading block dimension of A
- * @param T BLK_LEN-by-BLK_LEN storage matrix for result
- * @param k Block row and column (diagonal block) to perform DGEQT2 on
- */
-__global__ void dgeqt2_dlarfb_row_kernel(Numeric *M, int lbdm, int k, int nr_blk_cols) {
-    __shared__ Numeric T[BLK_SIZE];
-    Numeric Q[BLK_SIZE];
-    Numeric Q_[BLK_SIZE];
-
-    Numeric *M_kk = &M[BLK_POS(k, k, lbdm)];
-    Numeric *M_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
-
-    if (threadIdx.x == 0) {
-      for (int i = 0; i < BLK_SIZE; i++) {
-        T[i] = 0;
-      }
-
-      blk_dgeqt2(M_kk, T);
-    }
-    __syncthreads();
-    dlarfb(M_kn, M_kk, T, Q, Q_);
-}
-
-__global__ void dgeqt2_kernel(Numeric *M, int lbdm, int k, int nr_blk_cols) {
-    Numeric T[BLK_SIZE];
-    Numeric *M_kk = &M[BLK_POS(k, k, lbdm)];
-    for (int i = 0; i < BLK_SIZE; i++) {
-      T[i] = 0;
-    }
-
-    blk_dgeqt2(M_kk, T);
-}
-
-
-__global__ void dtsqt2_kernel(Numeric *M, int lbdm, int k, int m, int nr_blk_cols) {
-  Numeric Rbind[2 * BLK_SIZE];
-  Numeric T[BLK_SIZE];
-
-  Numeric *A_kk = &M[BLK_POS(k, k, lbdm)];
-  Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
-
-  for (int i = 0; i < BLK_SIZE; i++) {
-    T[i] = 0;
-  }
-
-  dtsqt2(A_kk, A_mk, T, Rbind);
-}
-
-__global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m, int nr_blk_cols) {
-
-    __shared__ Numeric T[BLK_SIZE];
-    Numeric X[BLK_SIZE];
-    Numeric Y[BLK_SIZE];
-
-    Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
-    Numeric *A_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
-    Numeric *A_mn = &M[BLK_POS(m, k + 1 + threadIdx.x, lbdm)];
-
-    if (threadIdx.x == 0) {
-      Numeric Rbind[2 * BLK_SIZE];
-
-      for (int i = 0; i < BLK_SIZE; i++) {
-        T[i] = 0;
-      }
-
-      Numeric *A_kk = &M[BLK_POS(k, k, lbdm)];
-      dtsqt2(A_kk, A_mk, T, Rbind);
-    }
-    __syncthreads();
-
-    dssrfb(A_kn, A_mn, A_mk, T, X, Y);
-}
-
 __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
   __shared__ Numeric T[BLK_SIZE];
   Numeric X[BLK_SIZE];
@@ -815,38 +718,15 @@ __global__ void dtsqt2_master(Numeric *M, int lbdm, int ki, int mi, int nr_blk_c
     Numeric Rbind[2 * BLK_SIZE];
 
     Numeric *A_kk = &M[BLK_POS(k, k, lbdm)];
-    // printf("dtsqt2 at %d,%d\n", m, k);
     dtsqt2(A_kk, A_mk, T, Rbind);
   }
   __syncthreads();
 
   if (k != nr_blk_cols - 1 && threadIdx.x < nr_blk_cols - k - 1) {
-      // printf("dssrfb at %d,%d\n", m, k + 1 + threadIdx.x);
       dssrfb(A_kn, A_mn, A_mk, T, X, Y);
   }
 
-  // if (blockIdx.x == 0) {
-  //   if (k != nr_blk_cols - 1) {
-  //     dtsqt2_dssrfb_row_kernel<<<1, nr_blk_cols - k - 1>>>(M, nr_blk_cols, k, m, nr_blk_cols);
-  //   } else {
-  //     dtsqt2_kernel<<<1, 1>>>(M, nr_blk_cols, k, m, nr_blk_cols);
-  //   }
-  // } else {
-  //   dtsqt2_dssrfb_row_kernel<<<1, nr_blk_cols - k - 1 + blockIdx.x>>>(M, nr_blk_cols, k - blockIdx.x, m + blockIdx.x, nr_blk_cols);
-  // }
 }
-
-// __global__ void dtsqt2_master(Numeric *M, int lbdm, int k, int m, int nr_blk_cols) {
-//   if (blockIdx.x == 0) {
-//     if (k != nr_blk_cols - 1) {
-//       dtsqt2_dssrfb_row_kernel<<<1, nr_blk_cols - k - 1>>>(M, nr_blk_cols, k, m, nr_blk_cols);
-//     } else {
-//       dtsqt2_kernel<<<1, 1>>>(M, nr_blk_cols, k, m, nr_blk_cols);
-//     }
-//   } else {
-//     dtsqt2_dssrfb_row_kernel<<<1, nr_blk_cols - k - 1 + blockIdx.x>>>(M, nr_blk_cols, k - blockIdx.x, m + blockIdx.x, nr_blk_cols);
-//   }
-// }
 
 extern "C"
 int
@@ -862,7 +742,6 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
 
   dtsqt2_master<<<1, blk_n - 1>>>(M, blk_n, 0, 1, blk_n);
   cudaDeviceSynchronize();
-  // printf("-------------\n");
 
   int i = 1;
   while (i < min_blk_d && i < blk_n) {
@@ -874,7 +753,6 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
     blocks = (i + i + 1) < blk_m ? i + 1 : blk_m - i - 1;
     dtsqt2_master<<<blocks, blk_n - i - 1 + blocks>>>(M, blk_n, i, i + 1, blk_n);
     cudaDeviceSynchronize();
-    // printf("-------------\n");
     ++i;
   }
 
@@ -883,100 +761,11 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
     int blocks = (i + blk_n) <= blk_m ? min_blk_d : blk_m - i;
     dtsqt2_master<<<blocks, blocks>>>(M, blk_n, blk_n - 1, i, blk_n);
     cudaDeviceSynchronize();
-    // printf("------------\n");
     ++i;
   }
 
   return 0;
 }
-
-// extern "C"
-// int
-// BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM)
-// {    
-//   bool dgeqt2_running = true;
-//   bool dlarfb_running = true;
-//   bool ran_dgeqt2 = false;
-
-//   int blk_m = BlkM->nr_blk_rows;
-//   int blk_n = BlkM->nr_blk_cols;
-
-//   int min_blk_d = blk_m > blk_n ? blk_n : blk_m;
-//   Numeric *M = BlkM->data_d;
-
-//   int max_parallelism = 0;
-//   int current_parallelism;
-//   int nr_kernels;
-  
-//   int i = 0;
-//   int j;
-//   int j_start = 0;
-//   int *dl = (int *)calloc(min_blk_d, sizeof(int));
-  
-//   if (blk_n != 1) {
-//     dgeqt2_dlarfb_row_kernel<<<1, blk_n - 1>>>(M, blk_n, 0, blk_n);
-//   } else {
-//     dgeqt2_kernel<<<1,1>>>(M, blk_n, 0, blk_n);
-//   }
-//   dl[i] = i + 1;
-//   ++i;
-
-//   cudaDeviceSynchronize();
-  
-//   while (dgeqt2_running || dlarfb_running) {
-//     current_parallelism = 0;
-//     nr_kernels = 0;
-//     if (i < min_blk_d && i < dl[i - 1]) {
-//       if (i < blk_n - 1) {
-//         dgeqt2_dlarfb_row_kernel<<<1, blk_n - i - 1>>>(M, blk_n, i, blk_n); // check res
-//         current_parallelism += blk_n - i - 1;
-//       } else {
-//         dgeqt2_kernel<<<1, 1>>>(M, blk_n, i, blk_n);
-//         current_parallelism += 1;
-//       }
-//       ++nr_kernels;
-//       ran_dgeqt2 = true;
-//     } else if (i == min_blk_d) {
-//       dgeqt2_running = false;
-//     }
-
-//     j = j_start;
-//     while (dl[j] != 0 && j < min_blk_d) {
-//       if (dl[j] < blk_m) {
-//         if (j != blk_n - 1) {
-//           dtsqt2_dssrfb_row_kernel<<<1, blk_n - j - 1>>>(M, blk_n, j, dl[j], blk_n);
-//           current_parallelism += blk_n - j - 1;
-//         } else {
-//           dtsqt2_kernel<<<1, 1>>>(M, blk_n, j, dl[j], blk_n);
-//           current_parallelism += 1;
-//         }
-//         ++nr_kernels;
-//         dl[j] += 1;
-//       } else if (dl[j] == blk_m) {
-//         j_start = j + 1;
-//       }
-//       ++j;
-//     }
-
-//     if (j_start == min_blk_d) {
-//       dlarfb_running = false;
-//     }
-
-//     printf("kernels/threads: %d/%d %d\n", nr_kernels, current_parallelism, ran_dgeqt2);
-
-//     if (ran_dgeqt2) {
-//       dl[i] = i + 1;
-//       ++i;
-//       ran_dgeqt2 = false;
-//     }
-
-//     max_parallelism = current_parallelism > max_parallelism ? current_parallelism : max_parallelism;
-//     cudaDeviceSynchronize();
-//   }
-//   printf("Max parallelism: %d\n", max_parallelism);
-
-//   return 0;
-// }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // KERNEL WRAPPERS
