@@ -20,7 +20,8 @@ void addPerfTest(char *name,
 }
 
 void addAllPerfTests() {
-    addPerfTest("TileQR_30k_4k", TileQR_30k_4k);
+    addPerfTest("TileQR_20k_4k", TileQR_20k_4k);
+    addPerfTest("CudaQR_20k_4k", CudaQR_20k_4k);
 }
 
 int RunAll() {

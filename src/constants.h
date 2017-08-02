@@ -2,7 +2,7 @@
 #define _BLOCK_DIST_PCA_CONSTANTS_H
 
 
-#define FLOAT_NUMERIC 0
+#define FLOAT_NUMERIC 1
 
 #if FLOAT_NUMERIC
 typedef float Numeric;
@@ -17,8 +17,8 @@ typedef double Numeric;
  *
  *  GET_BLK_POS(i, j) position in column-major linear memory
  */
-#define BLK_LEN (4)
-#define BLK_SIZE (16)
+#define BLK_LEN (100)
+#define BLK_SIZE (10000)
 
 #define BLK_LEN_MEM (BLK_LEN * sizeof(Numeric))
 #define BLK_SIZE_MEM (BLK_SIZE * sizeof(Numeric))
@@ -38,8 +38,8 @@ typedef double Numeric;
  *
  * GET_DBL_BLK_POS(i, j) position in column-major linear memory
  */
-#define DBL_BLK_LEN (8)
-#define DBL_BLK_SIZE (64)
+#define DBL_BLK_LEN (200)
+#define DBL_BLK_SIZE (40000)
 
 #define GET_DBL_BLK_POS(i, j) ((j) * DBL_BLK_LEN + (i))
 

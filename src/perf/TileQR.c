@@ -16,11 +16,11 @@
 
 int CudaQR(int m, int n, double *runtime_ms)
 {
-    int res;
+    int res, ress;
     int lwork = 0;
 
     cusolverDnHandle_t handle;
-    BlockMatrix A;
+    Matrix A;
     Timer t;
 
     Numeric *work;
@@ -33,14 +33,8 @@ int CudaQR(int m, int n, double *runtime_ms)
     res = cusolverDnCreate(&handle);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to create handle");
 
-    res = BlockMatrix_init_rand(&A, m, n, 500, 253);
+    res = Matrix_init_constant_device(&A, m, n, 253.360);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to init rand block matrix");
-
-    res = BlockMatrix_init_device(&A);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to init block matrix on device");
-
-    res = BlockMatrix_copy_host_to_device(&A);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to copy block matrix from host to device");
 
     #if FLOAT_NUMERIC
         res = cusolverDnSgeqrf_bufferSize(handle, m, n, A.data_d, m, &lwork);
@@ -60,8 +54,16 @@ int CudaQR(int m, int n, double *runtime_ms)
 
     Timer_start(&t);
 
-    res = cusolverDnDgeqrf(handle, m, n, A.data_d, m, tau, work, lwork, resp);
+    #if FLOAT_NUMERIC
+        res = cusolverDnSgeqrf(handle, m, n, A.data_d, m, tau, work, lwork, resp);
+    #else
+        res = cusolverDnDgeqrf(handle, m, n, A.data_d, m, tau, work, lwork, resp);
+    #endif
+
+    ress = cudaDeviceSynchronize();
+
     CHECK_CUSOLVER_RETURN(res, "Failed to compute QR");
+    CHECK_CUSOLVER_RETURN(ress, "Failed to synchronize");
 
     Timer_end(&t);
 
@@ -69,10 +71,7 @@ int CudaQR(int m, int n, double *runtime_ms)
 
     cudaProfilerStop();
 
-    res = BlockMatrix_free(&A);
-    CHECK_ZERO_ERROR_RETURN(res, "Failed to free block matrix from host");
-
-    res = BlockMatrix_free_device(&A);
+    res = Matrix_free_device(&A);
     CHECK_ZERO_ERROR_RETURN(res, "Failed to free block matrix from device");
 
     return 0;
@@ -114,6 +113,10 @@ int TileQR(int m, int n, double *runtime_ms)
     return 0;
 }
 
-int TileQR_30k_4k(double *runtime_ms) {
+int TileQR_20k_4k(double *runtime_ms) {
     return TileQR(20000, 4000, runtime_ms);
+}
+
+int CudaQR_20k_4k(double *runtime_ms) {
+    return CudaQR(20000, 4000, runtime_ms);
 }
