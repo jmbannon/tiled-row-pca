@@ -754,32 +754,76 @@ __global__ void dtsqt2_dssrfb_row_kernel(Numeric *M, int lbdm, int k, int m, int
     dssrfb(A_kn, A_mn, A_mk, T, X, Y);
 }
 
-__global__ void dgeqt2_master(Numeric *M, int lbdm, int k, int nr_blk_cols) {
+__global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
+  __shared__ Numeric T[BLK_SIZE];
+  Numeric X[BLK_SIZE];
+  Numeric Y[BLK_SIZE];
+
+  int k = ki - blockIdx.x;
+  int m = ki + blockIdx.x;
+
+  if (threadIdx.x == 0) {
+    for (int i = 0; i < BLK_SIZE; i++) {
+      T[i] = 0;
+    }
+  }
+
   if (blockIdx.x == 0) {
-      if (k < nr_blk_cols - 1) {
-          // printf("dgeqt2 dlarfb at %d with %d threads\n", k, nr_blk_cols - k - 1);
-          dgeqt2_dlarfb_row_kernel<<<1, nr_blk_cols - k - 1>>>(M, lbdm, k, nr_blk_cols);
-      } else {
-          // printf("dgeqt2 dlarfb at %d \n", k);
-          dgeqt2_kernel<<<1, 1>>>(M, lbdm, k, nr_blk_cols);
+      Numeric *M_kk = &M[BLK_POS(k, k, lbdm)];
+      if (threadIdx.x == 0) {
+          // printf("dgeqt2 at %d\n", k);
+          blk_dgeqt2(M_kk, T);
+      }
+      __syncthreads();
+      if (k < nr_blk_cols - 1 && threadIdx.x < nr_blk_cols - k - 1) {
+          Numeric *M_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
+
+          // printf("dlarfb at %d,%d\n", k, k + 1 + threadIdx.x);
+          dlarfb(M_kn, M_kk, T, X, Y);
       }
   } else {
-    // printf("dtsqt2 at %d,%d with %d threads\n", k + blockIdx.x, k - blockIdx.x, nr_blk_cols - k - 1 + blockIdx.x);
-    dtsqt2_dssrfb_row_kernel<<<1, nr_blk_cols - k - 1 + blockIdx.x>>>(M, lbdm, k - blockIdx.x, k + blockIdx.x, nr_blk_cols);
+    // dtsqt2_dssrfb_row_kernel<<<1, nr_blk_cols - k - 1 + blockIdx.x>>>(M, lbdm, k - blockIdx.x, k + blockIdx.x, nr_blk_cols);
+
+    Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
+    Numeric *A_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
+    Numeric *A_mn = &M[BLK_POS(m, k + 1 + threadIdx.x, lbdm)];
+
+    if (threadIdx.x == 0) {
+      Numeric Rbind[2 * BLK_SIZE];
+
+      Numeric *A_kk = &M[BLK_POS(k, k, lbdm)];
+      // printf("dtsqt2 at %d,%d\n", m, k);
+      dtsqt2(A_kk, A_mk, T, Rbind);
+    }
+    __syncthreads();
+
+    if (threadIdx.x < nr_blk_cols - k - 1) {
+      // printf("dssrfb at %d,%d\n", m, k + 1 + threadIdx.x);
+      dssrfb(A_kn, A_mn, A_mk, T, X, Y);
+    } 
   }
 }
+
+// __global__ void dgeqt2_master(Numeric *M, int lbdm, int k, int nr_blk_cols) {
+//   if (blockIdx.x == 0) {
+//       if (k < nr_blk_cols - 1) {
+//           dgeqt2_dlarfb_row_kernel<<<1, nr_blk_cols - k - 1>>>(M, lbdm, k, nr_blk_cols);
+//       } else {
+//           dgeqt2_kernel<<<1, 1>>>(M, lbdm, k, nr_blk_cols);
+//       }
+//   } else {
+//     dtsqt2_dssrfb_row_kernel<<<1, nr_blk_cols - k - 1 + blockIdx.x>>>(M, lbdm, k - blockIdx.x, k + blockIdx.x, nr_blk_cols);
+//   }
+// }
 
 __global__ void dtsqt2_master(Numeric *M, int lbdm, int k, int m, int nr_blk_cols) {
   if (blockIdx.x == 0) {
     if (k != nr_blk_cols - 1) {
-      // printf("dtsqt2 at %d,%d with %d threads\n", m, k, nr_blk_cols - k - 1);
       dtsqt2_dssrfb_row_kernel<<<1, nr_blk_cols - k - 1>>>(M, nr_blk_cols, k, m, nr_blk_cols);
     } else {
-      // printf("dtsqt2 at %d,%d\n", m, k);
       dtsqt2_kernel<<<1, 1>>>(M, nr_blk_cols, k, m, nr_blk_cols);
     }
   } else {
-    // printf("dtsqt2 at %d,%d with %d threads\n", m + blockIdx.x, k - blockIdx.x, nr_blk_cols - k - 1 + blockIdx.x);
     dtsqt2_dssrfb_row_kernel<<<1, nr_blk_cols - k - 1 + blockIdx.x>>>(M, nr_blk_cols, k - blockIdx.x, m + blockIdx.x, nr_blk_cols);
   }
 }
@@ -793,36 +837,31 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
   int min_blk_d = blk_m > blk_n ? blk_n : blk_m;
   Numeric *M = BlkM->data_d;
 
-  dgeqt2_master<<<1, 1>>>(M, blk_n, 0, blk_n);
+  dgeqt2_master<<<1, blk_n - 1>>>(M, blk_n, 0, blk_n);
   cudaDeviceSynchronize();
-  // printf("-------------------\n");
+  printf("-------------\n");
+
   dtsqt2_master<<<1, 1>>>(M, blk_n, 0, 1, blk_n);
   cudaDeviceSynchronize();
-  // printf("-------------------\n");
 
   int i = 1;
   while (i < min_blk_d && i < blk_n) {
     int blocks = (i + i) < blk_m ? i + 1 : blk_m - i;
-    // printf("blocks: %d\n", blocks);
 
-    dgeqt2_master<<<blocks, 1>>>(M, blk_n, i, blk_n);
-    cudaDeviceSynchronize();
-    // printf("-------------------\n");
+    dgeqt2_master<<<blocks, blk_n - i - 1 + blocks>>>(M, blk_n, i, blk_n);
+    cudaDeviceSynchronize(); printf("-------------\n");
 
     blocks = (i + i + 1) < blk_m ? i + 1 : blk_m - i - 1;
     dtsqt2_master<<<blocks, 1>>>(M, blk_n, i, i + 1, blk_n);
     cudaDeviceSynchronize();
-    // printf("-------------------\n");
     ++i;
   }
 
   ++i;
-  // printf("bad loop!\n");
   while (i < blk_m) {
     int blocks = (i + blk_n) <= blk_m ? min_blk_d : blk_m - i;
     dtsqt2_master<<<blocks, 1>>>(M, blk_n, blk_n - 1, i, blk_n);
     cudaDeviceSynchronize();
-    // printf("-------------------\n");
     ++i;
   }
 
