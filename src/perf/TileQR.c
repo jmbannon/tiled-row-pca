@@ -110,9 +110,9 @@ int TileQR(int m, int n, double *runtime_ms)
 }
 
 int TileQR_20k_4k(double *runtime_ms) {
-    return TileQR(30000, 1000, runtime_ms);
+    return TileQR(8000, 8000, runtime_ms);
 }
 
 int CudaQR_20k_4k(double *runtime_ms) {
-    return CudaQR(30000, 1000, runtime_ms);
+    return CudaQR(8000, 8000, runtime_ms);
 }

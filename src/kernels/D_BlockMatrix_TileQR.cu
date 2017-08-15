@@ -628,8 +628,25 @@ __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
   Numeric X[BLK_SIZE];
   Numeric Y[BLK_SIZE];
 
-  int k = ki - blockIdx.x;
-  int m = ki + blockIdx.x;
+   int k = ki - blockIdx.x;
+   int m = ki + blockIdx.x;
+
+   int nr_blks_to_process = nr_blk_cols - k - 1;
+   int div = nr_blks_to_process / blockDim.x;
+   int offset = nr_blks_to_process % blockDim.x;
+
+   int start_col;
+   int local_blks_to_process;
+  if (threadIdx.x < offset) {
+    start_col = threadIdx.x * (div + 1);
+    local_blks_to_process = div + 1;
+  } else {
+    start_col = (offset * (div + 1)) + ((threadIdx.x - offset) * div);
+    local_blks_to_process = div;
+  }
+  start_col += 1;
+
+  // printf("%d: %d %d %d\n", threadIdx.x, nr_blks_to_process, start_col, local_blks_to_process);
 
   if (threadIdx.x == 0) {
     for (int i = 0; i < BLK_SIZE; i++) {
@@ -638,33 +655,41 @@ __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
   }
 
   if (blockIdx.x == 0) {
-      Numeric *M_kk = &M[BLK_POS(k, k, lbdm)];
+      Numeric *M_kk = &M[BLK_POS(k, k, nr_blk_cols)];
       if (threadIdx.x == 0) {
           blk_dgeqt2(M_kk, T);
       }
       __syncthreads();
 
       //printf("dlarfb using %d threads\n", nr_blk_cols - k - 1);
-      if (k < nr_blk_cols - 1 && threadIdx.x < nr_blk_cols - k - 1) {
-          Numeric *M_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
+      if (nr_blks_to_process > 0) {
 
-          dlarfb(M_kn, M_kk, T, X, Y);
+          for (int i = 0; i < local_blks_to_process; i++) {
+            // printf("dlarfb %d: %d %d\n", threadIdx.x, k, k + start_col + i);
+            Numeric *M_kn = &M[BLK_POS(k, k + start_col + i, nr_blk_cols)];
+            dlarfb(M_kn, M_kk, T, X, Y);
+          }
+          
       }
   } else {
-    Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
-    Numeric *A_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
-    Numeric *A_mn = &M[BLK_POS(m, k + 1 + threadIdx.x, lbdm)];
+    Numeric *A_mk = &M[BLK_POS(m, k, nr_blk_cols)];
 
     if (threadIdx.x == 0) {
       Numeric Rbind[2 * BLK_SIZE];
 
-      Numeric *A_kk = &M[BLK_POS(k, k, lbdm)];
+      Numeric *A_kk = &M[BLK_POS(k, k, nr_blk_cols)];
       dtsqt2(A_kk, A_mk, T, Rbind);
     }
     __syncthreads();
 
-    if (threadIdx.x < nr_blk_cols - k - 1) {
-      dssrfb(A_kn, A_mn, A_mk, T, X, Y);
+    if (nr_blks_to_process > 0) {
+      for (int i = 0; i < local_blks_to_process; i++) {
+        // printf("dssrfb %d: k=%d %d %d\n", threadIdx.x, k, m, k + start_col + i);
+        Numeric *A_kn = &M[BLK_POS(k, k + start_col + i, nr_blk_cols)];
+        Numeric *A_mn = &M[BLK_POS(m, k + start_col + i, nr_blk_cols)];
+        dssrfb(A_kn, A_mn, A_mk, T, X, Y);
+      }
+      
     } 
   }
 }
@@ -677,10 +702,23 @@ __global__ void dtsqt2_master(Numeric *M, int lbdm, int ki, int mi, int nr_blk_c
   int k = ki - blockIdx.x;
   int m = mi + blockIdx.x;
 
+  int nr_blks_to_process = nr_blk_cols - k - 1;
+   int div = nr_blks_to_process / blockDim.x;
+   int offset = nr_blks_to_process % blockDim.x;
+
+   int start_col;
+   int local_blks_to_process;
+  if (threadIdx.x < offset) {
+    start_col = threadIdx.x * (div + 1);
+    local_blks_to_process = div + 1;
+  } else {
+    start_col = (offset * (div + 1)) + ((threadIdx.x - offset) * div);
+    local_blks_to_process = div;
+  }
+  start_col += 1;
+
 
   Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
-  Numeric *A_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
-  Numeric *A_mn = &M[BLK_POS(m, k + 1 + threadIdx.x, lbdm)];
 
   if (threadIdx.x == 0) {
     Numeric Rbind[2 * BLK_SIZE];
@@ -690,10 +728,23 @@ __global__ void dtsqt2_master(Numeric *M, int lbdm, int ki, int mi, int nr_blk_c
   }
   __syncthreads();
 
-  if (k != nr_blk_cols - 1 && threadIdx.x < nr_blk_cols - k - 1) {
-      dssrfb(A_kn, A_mn, A_mk, T, X, Y);
-  }
+  if (nr_blks_to_process > 0) {
+      for (int i = 0; i < local_blks_to_process; i++) {
+        // printf("dssrfb %d: k=%d %d %d\n", threadIdx.x, k, m, k + start_col + i);
+        Numeric *A_kn = &M[BLK_POS(k, k + start_col + i, nr_blk_cols)];
+        Numeric *A_mn = &M[BLK_POS(m, k + start_col + i, nr_blk_cols)];
+        dssrfb(A_kn, A_mn, A_mk, T, X, Y);
+      }
+      
+    } 
 
+}
+
+int powdown(int x) {
+  const int max = 256;
+  int ans = 1;
+  while ((ans * 2) < x && (ans * 2) < max) ans *= 2;
+  return ans;
 }
 
 extern "C"
@@ -706,25 +757,21 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
   Numeric *M = BlkM->data_d;
 
   // printf("blocks: %d, threads: %d\n", 1, blk_n - 1);
-  dgeqt2_master<<<1, blk_n - 1>>>(M, blk_n, 0, blk_n);
-  cudaDeviceSynchronize();
+  dgeqt2_master<<<1, powdown(blk_n - 1)>>>(M, blk_n, 0, blk_n);
 
   // printf("blocks: %d, threads: %d\n", 1, blk_n - 1);
-  dtsqt2_master<<<1, blk_n - 1>>>(M, blk_n, 0, 1, blk_n);
-  cudaDeviceSynchronize();
+  dtsqt2_master<<<1, powdown(blk_n - 1)>>>(M, blk_n, 0, 1, blk_n);
 
   int i = 1;
   while (i < min_blk_d && i < blk_n) {
     int blocks = (i + i) < blk_m ? i + 1 : blk_m - i;
 
     // printf("blocks: %d, threads: %d\n", blocks, blk_n - i - 1 + blocks);
-    dgeqt2_master<<<blocks, blk_n - i - 1 + blocks>>>(M, blk_n, i, blk_n);
-    cudaDeviceSynchronize();
+    dgeqt2_master<<<blocks, powdown(blk_n - i - 1 + blocks)>>>(M, blk_n, i, blk_n);
 
     blocks = (i + i + 1) < blk_m ? i + 1 : blk_m - i - 1;
     // printf("blocks: %d, threads: %d\n", blocks, blk_n - i - 1 + blocks);
-    dtsqt2_master<<<blocks, blk_n - i - 1 + blocks>>>(M, blk_n, i, i + 1, blk_n);
-    cudaDeviceSynchronize();
+    dtsqt2_master<<<blocks, powdown(blk_n - i - 1 + blocks)>>>(M, blk_n, i, i + 1, blk_n);
     ++i;
   }
 
@@ -732,10 +779,11 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
   while (i < blk_m) {
     int blocks = (i + blk_n) <= blk_m ? min_blk_d : blk_m - i;
     // printf("blocks: %d, threads: %d\n", blocks, blocks);
-    dtsqt2_master<<<blocks, blocks>>>(M, blk_n, blk_n - 1, i, blk_n);
-    cudaDeviceSynchronize();
+    dtsqt2_master<<<blocks, powdown(blocks)>>>(M, blk_n, blk_n - 1, i, blk_n);
     ++i;
   }
+
+  cudaDeviceSynchronize();
 
   return 0;
 }
