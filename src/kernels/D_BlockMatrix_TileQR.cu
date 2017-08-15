@@ -632,8 +632,25 @@ __global__ void dgeqt2_master(Numeric *M, int ki, int nr_blk_cols) {
   Numeric X[BLK_SIZE];
   Numeric Y[BLK_SIZE];
 
-  volatile int k = ki - blockIdx.x;
-  volatile int m = ki + blockIdx.x;
+   int k = ki - blockIdx.x;
+   int m = ki + blockIdx.x;
+
+   int nr_blks_to_process = nr_blk_cols - k - 1;
+   int div = nr_blks_to_process / blockDim.x;
+   int offset = nr_blks_to_process % blockDim.x;
+
+   int start_col;
+   int local_blks_to_process;
+  if (threadIdx.x < offset) {
+    start_col = threadIdx.x * (div + 1);
+    local_blks_to_process = div + 1;
+  } else {
+    start_col = (offset * (div + 1)) + ((threadIdx.x - offset) * div);
+    local_blks_to_process = div;
+  }
+  start_col += 1;
+
+  printf("%d: %d %d %d\n", threadIdx.x, nr_blks_to_process, start_col, local_blks_to_process);
 
   if (threadIdx.x == 0) {
     for (int i = 0; i < BLK_SIZE; i++) {
@@ -649,15 +666,17 @@ __global__ void dgeqt2_master(Numeric *M, int ki, int nr_blk_cols) {
       __syncthreads();
 
       //printf("dlarfb using %d threads\n", nr_blk_cols - k - 1);
-      if (k < nr_blk_cols - 1 && threadIdx.x < nr_blk_cols - k - 1) {
-          Numeric *M_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, nr_blk_cols)];
+      if (nr_blks_to_process > 0) {
 
-          dlarfb(M_kn, M_kk, T, X, Y);
+          for (int i = 0; i < local_blks_to_process; i++) {
+            printf("dlarfb %d: %d %d\n", threadIdx.x, k, k + start_col + i);
+            Numeric *M_kn = &M[BLK_POS(k, k + start_col + i, nr_blk_cols)];
+            dlarfb(M_kn, M_kk, T, X, Y);
+          }
+          
       }
   } else {
     Numeric *A_mk = &M[BLK_POS(m, k, nr_blk_cols)];
-    Numeric *A_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, nr_blk_cols)];
-    Numeric *A_mn = &M[BLK_POS(m, k + 1 + threadIdx.x, nr_blk_cols)];
 
     if (threadIdx.x == 0) {
       Numeric Rbind[2 * BLK_SIZE];
@@ -667,8 +686,14 @@ __global__ void dgeqt2_master(Numeric *M, int ki, int nr_blk_cols) {
     }
     __syncthreads();
 
-    if (threadIdx.x < nr_blk_cols - k - 1) {
-      dssrfb(A_kn, A_mn, A_mk, T, X, Y);
+    if (nr_blks_to_process > 0) {
+      for (int i = 0; i < local_blks_to_process; i++) {
+        printf("dssrfb %d: k=%d %d %d\n", threadIdx.x, k, m, k + start_col + i);
+        Numeric *A_kn = &M[BLK_POS(k, k + start_col + i, nr_blk_cols)];
+        Numeric *A_mn = &M[BLK_POS(m, k + start_col + i, nr_blk_cols)];
+        dssrfb(A_kn, A_mn, A_mk, T, X, Y);
+      }
+      
     } 
   }
 }
@@ -710,7 +735,7 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
   Numeric *M = BlkM->data_d;
 
   printf("blocks: %d, threads: %d\n", 1, blk_n - 1);
-  dgeqt2_master<<<1, blk_n - 1>>>(M, blk_n, 0);
+  dgeqt2_master<<<1, blk_n - 1>>>(M, 0, blk_n);
   CHECK_CUDA_RETURN(cudaPeekAtLastError());
   // cudaDeviceSynchronize();
 
@@ -727,7 +752,7 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
     }
 
     printf("blocks: %d, threads: %d\n", blocks, blk_n - i - 1 + blocks);
-    dgeqt2_master<<<blocks, blk_n - i - 1 + blocks>>>(M, blk_n, i);
+    dgeqt2_master<<<blocks, blk_n - i - 1 + blocks>>>(M, i, blk_n);
     CHECK_CUDA_RETURN(cudaPeekAtLastError());
     // cudaDeviceSynchronize();
 
