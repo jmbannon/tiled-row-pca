@@ -705,35 +705,52 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
   int min_blk_d = blk_m > blk_n ? blk_n : blk_m;
   Numeric *M = BlkM->data_d;
 
-  // printf("blocks: %d, threads: %d\n", 1, blk_n - 1);
+  printf("blocks: %d, threads: %d\n", 1, blk_n - 1);
   dgeqt2_master<<<1, blk_n - 1>>>(M, blk_n, 0, blk_n);
-  cudaDeviceSynchronize();
+  CHECK_CUDA_RETURN(cudaPeekAtLastError());
+  // cudaDeviceSynchronize();
 
-  // printf("blocks: %d, threads: %d\n", 1, blk_n - 1);
+  printf("blocks: %d, threads: %d\n", 1, blk_n - 1);
   dtsqt2_master<<<1, blk_n - 1>>>(M, blk_n, 0, 1, blk_n);
-  cudaDeviceSynchronize();
+  CHECK_CUDA_RETURN(cudaPeekAtLastError());
+  // cudaDeviceSynchronize();
 
   int i = 1;
   while (i < min_blk_d && i < blk_n) {
     int blocks = (i + i) < blk_m ? i + 1 : blk_m - i;
+    if (blocks <= 0) {
+      blocks = 1;
+    }
 
-    // printf("blocks: %d, threads: %d\n", blocks, blk_n - i - 1 + blocks);
+    printf("blocks: %d, threads: %d\n", blocks, blk_n - i - 1 + blocks);
     dgeqt2_master<<<blocks, blk_n - i - 1 + blocks>>>(M, blk_n, i, blk_n);
-    cudaDeviceSynchronize();
+    CHECK_CUDA_RETURN(cudaPeekAtLastError());
+    // cudaDeviceSynchronize();
 
     blocks = (i + i + 1) < blk_m ? i + 1 : blk_m - i - 1;
-    // printf("blocks: %d, threads: %d\n", blocks, blk_n - i - 1 + blocks);
+    if (blocks <= 0) {
+      blocks = 1;
+    }
+
+    printf("blocks: %d, threads: %d\n", blocks, blk_n - i - 1 + blocks);
     dtsqt2_master<<<blocks, blk_n - i - 1 + blocks>>>(M, blk_n, i, i + 1, blk_n);
-    cudaDeviceSynchronize();
+    CHECK_CUDA_RETURN(cudaPeekAtLastError());
+    // cudaDeviceSynchronize();
     ++i;
   }
 
   ++i;
   while (i < blk_m) {
     int blocks = (i + blk_n) <= blk_m ? min_blk_d : blk_m - i;
-    // printf("blocks: %d, threads: %d\n", blocks, blocks);
+
+    if (blocks <= 0) {
+      blocks = 1;
+    }
+
+    printf("blocks: %d, threads: %d\n", blocks, blocks);
     dtsqt2_master<<<blocks, blocks>>>(M, blk_n, blk_n - 1, i, blk_n);
-    cudaDeviceSynchronize();
+    CHECK_CUDA_RETURN(cudaPeekAtLastError());
+    // cudaDeviceSynchronize();
     ++i;
   }
 

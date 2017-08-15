@@ -1,5 +1,6 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <stdio.h>
 
 #ifndef ERROR_H_
 #define ERROR_H_
@@ -52,6 +53,17 @@ switch(res)\
     case CUSOLVER_STATUS_MATRIX_TYPE_NOT_SUPPORTED: printf("\n ERROR: CUSOLVER_STATUS_MATRIX_TYPE_NOT_SUPPORTED\n %s\n", error); return CUSOLVER_STATUS_MATRIX_TYPE_NOT_SUPPORTED;\
     default: printf("\n ERROR: UKNOWN_CUBLAS_ERROR\n %s\n", error); return 1;\
 }
+
+inline void gpuAssert(cudaError_t code, const char *file, int line)
+{
+   if (code != cudaSuccess) 
+   {
+      printf("GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+      exit(code);
+   }
+}
+
+#define CHECK_CUDA_RETURN(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 
 
 #define MALLOC_FAIL -1
