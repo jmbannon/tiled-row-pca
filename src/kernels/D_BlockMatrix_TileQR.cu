@@ -296,14 +296,16 @@ __device__ void house_row(Numeric *A, Numeric *v, Numeric *beta, Numeric *w, int
   * @param v Work-space vector.
   * @param store_house True if householder vectors should be stored in lower-triangular portion of output. False otherwise.
   */
-__device__ void house_qr(Numeric *A, Numeric *beta, Numeric *w, Numeric *v, int m, int n)
+__device__ void house_qr(Numeric *A, Numeric *beta, Numeric *w, Numeric *v, int m)
 {
   register int pos;
-  for (int j = 0; j < n; j++) {
+
+  #pragma unroll
+  for (int j = 0; j < BLK_LEN; j++) {
     pos = MAT_POS(j, j, m);
 
     house(&A[pos], &v[j], m - j);
-    house_row(&A[pos], &v[j], &beta[j], &w[j], m - j, n - j, m);
+    house_row(&A[pos], &v[j], &beta[j], &w[j], m - j, BLK_LEN - j, m);
 
     // Copies householder vector into lower triangular portion of A
     if (j < m) {
@@ -339,7 +341,7 @@ __device__ void house_qr(Numeric *A, Numeric *beta, Numeric *w, Numeric *v, int 
   * @param Y m-by-n matrix where lower-triangular + diag portion holds householder vectors and the upper-triangular portion holds the R matrix from QR.
   * @param T n-by-n output matrix to store T
   */
-__device__ void house_yt(Numeric *Y, Numeric *T, Numeric *beta, int m, int n)
+__device__ void house_yt(Numeric *Y, Numeric *T, Numeric *beta, int m)
 {
   Numeric alpha;
   int v_idx;
@@ -347,20 +349,22 @@ __device__ void house_yt(Numeric *Y, Numeric *T, Numeric *beta, int m, int n)
   int y_idx;
 
   T[0] = beta[0];
-  for (int j = 1; j < n; j++) {
+
+  #pragma unroll
+  for (int j = 1; j < BLK_LEN; j++) {
     alpha = beta[j];
 
     y_idx = MAT_POS(j, 0, m);
     v_idx = MAT_POS(j, j, m);
-    z_idx = MAT_POS(0, j, n);
+    z_idx = MAT_POS(0, j, BLK_LEN);
 
     // Computes -2 * t(Y) * v_j = z' in an optimized way to ignore 0 elements in v_j. Stores it in z-location of T matrix.
-    gevtm(j, m - j, alpha, &Y[y_idx], m, &Y[v_idx], m, &T[z_idx], n);
+    gevtm(j, m - j, alpha, &Y[y_idx], m, &Y[v_idx], m, &T[z_idx], BLK_LEN);
 
     // Computes T * z' using a triangular matrix-vector multiplication routine.
-    trmv(j, T, n, &T[z_idx]);
+    trmv(j, T, BLK_LEN, &T[z_idx]);
 
-    T[MAT_POS(j, j, n)] = beta[j];
+    T[MAT_POS(j, j, BLK_LEN)] = beta[j];
   }
 }
 
@@ -379,8 +383,8 @@ __device__ void dblk_dgeqt2(Numeric *A, Numeric *T)
   Numeric v[DBL_BLK_LEN];
   Numeric beta[BLK_LEN];
 
-  house_qr(A, beta, w, v, DBL_BLK_LEN, BLK_LEN);
-  house_yt(A, T, beta, DBL_BLK_LEN, BLK_LEN);
+  house_qr(A, beta, w, v, DBL_BLK_LEN);
+  house_yt(A, T, beta, DBL_BLK_LEN);
 }
 
 __device__ void blk_dgeqt2(Numeric *A, Numeric *T)
@@ -389,8 +393,8 @@ __device__ void blk_dgeqt2(Numeric *A, Numeric *T)
   Numeric v[BLK_LEN];
   Numeric beta[BLK_LEN];
 
-  house_qr(A, beta, w, v, BLK_LEN, BLK_LEN);
-  house_yt(A, T, beta, BLK_LEN, BLK_LEN);
+  house_qr(A, beta, w, v, BLK_LEN);
+  house_yt(A, T, beta, BLK_LEN);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -623,13 +627,13 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
 // Parallel QR
 //////////////////////
 
-__global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
+__global__ void dgeqt2_master(Numeric *M, int ki, int nr_blk_cols) {
   __shared__ Numeric T[BLK_SIZE];
   Numeric X[BLK_SIZE];
   Numeric Y[BLK_SIZE];
 
-  int k = ki - blockIdx.x;
-  int m = ki + blockIdx.x;
+  volatile int k = ki - blockIdx.x;
+  volatile int m = ki + blockIdx.x;
 
   if (threadIdx.x == 0) {
     for (int i = 0; i < BLK_SIZE; i++) {
@@ -638,7 +642,7 @@ __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
   }
 
   if (blockIdx.x == 0) {
-      Numeric *M_kk = &M[BLK_POS(k, k, lbdm)];
+      Numeric *M_kk = &M[BLK_POS(k, k, nr_blk_cols)];
       if (threadIdx.x == 0) {
           blk_dgeqt2(M_kk, T);
       }
@@ -646,19 +650,19 @@ __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
 
       //printf("dlarfb using %d threads\n", nr_blk_cols - k - 1);
       if (k < nr_blk_cols - 1 && threadIdx.x < nr_blk_cols - k - 1) {
-          Numeric *M_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
+          Numeric *M_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, nr_blk_cols)];
 
           dlarfb(M_kn, M_kk, T, X, Y);
       }
   } else {
-    Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
-    Numeric *A_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, lbdm)];
-    Numeric *A_mn = &M[BLK_POS(m, k + 1 + threadIdx.x, lbdm)];
+    Numeric *A_mk = &M[BLK_POS(m, k, nr_blk_cols)];
+    Numeric *A_kn = &M[BLK_POS(k, k + 1 + threadIdx.x, nr_blk_cols)];
+    Numeric *A_mn = &M[BLK_POS(m, k + 1 + threadIdx.x, nr_blk_cols)];
 
     if (threadIdx.x == 0) {
       Numeric Rbind[2 * BLK_SIZE];
 
-      Numeric *A_kk = &M[BLK_POS(k, k, lbdm)];
+      Numeric *A_kk = &M[BLK_POS(k, k, nr_blk_cols)];
       dtsqt2(A_kk, A_mk, T, Rbind);
     }
     __syncthreads();
@@ -706,7 +710,7 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
   Numeric *M = BlkM->data_d;
 
   printf("blocks: %d, threads: %d\n", 1, blk_n - 1);
-  dgeqt2_master<<<1, blk_n - 1>>>(M, blk_n, 0, blk_n);
+  dgeqt2_master<<<1, blk_n - 1>>>(M, blk_n, 0);
   CHECK_CUDA_RETURN(cudaPeekAtLastError());
   // cudaDeviceSynchronize();
 
@@ -723,7 +727,7 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
     }
 
     printf("blocks: %d, threads: %d\n", blocks, blk_n - i - 1 + blocks);
-    dgeqt2_master<<<blocks, blk_n - i - 1 + blocks>>>(M, blk_n, i, blk_n);
+    dgeqt2_master<<<blocks, blk_n - i - 1 + blocks>>>(M, blk_n, i);
     CHECK_CUDA_RETURN(cudaPeekAtLastError());
     // cudaDeviceSynchronize();
 
