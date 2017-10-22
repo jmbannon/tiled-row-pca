@@ -19,8 +19,8 @@ LAPACK_LIB_INCL = ${LAPACK_LIB_DIR}/liblapack.a -l${FCC}
 LAPACK_C_INCL   = ${LAPACK_CWRAPPER}/liblapack_cwrapper.a -l${FCC}
 LAPACK          = ${LAPACK_LIB_INCL} ${LAPACK_C_INCL} ${LAPACK_ARGS}
 
-CUDA_FLAGS      = -lcuda -lcudart -lcublas -lcusolver -lcublas_device
-CUDA_INCL       = -I/usr/local/lib/cuda/include -L${CUDA_LIB_DIR} ${CUDA_FLAGS}
+CUDA_FLAGS      = -lcuda -lcudart -lcublas -lcusolver -lcublas_device --use_fast_math 
+CUDA_INCL       = -I/usr/local/cuda/include -L${CUDA_LIB_DIR} ${CUDA_FLAGS}
 
 SHARED_FLAGS    = -Wno-deprecated-gpu-targets
 HOST_FLAGS      = ${SHARED_FLAGS} ${LOCAL} ${LAPACK} ${OMP} ${OMPI} ${CUDA}
