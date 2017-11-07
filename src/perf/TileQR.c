@@ -109,10 +109,77 @@ int TileQR(int m, int n, double *runtime_ms)
     return 0;
 }
 
-int TileQR_20k_4k(double *runtime_ms) {
-    return TileQR(8000, 8000, runtime_ms);
+int TileQR_1k_4k(double *runtime_ms) {
+    return TileQR(1000, 4000, runtime_ms);
 }
 
-int CudaQR_20k_4k(double *runtime_ms) {
-    return CudaQR(8000, 8000, runtime_ms);
+int CudaQR_1k_4k(double *runtime_ms) {
+    return CudaQR(1000, 4000, runtime_ms);
 }
+
+int TileQR_2k_4k(double *runtime_ms) {
+    return TileQR(2000, 4000, runtime_ms);
+}
+
+int CudaQR_2k_4k(double *runtime_ms) {
+    return CudaQR(2000, 4000, runtime_ms);
+}
+
+int TileQR_4k_4k(double *runtime_ms) {
+    return TileQR(4000, 4000, runtime_ms);
+}
+
+int CudaQR_4k_4k(double *runtime_ms) {
+    return CudaQR(4000, 4000, runtime_ms);
+}
+
+int TileQR_8k_4k(double *runtime_ms) {
+    return TileQR(8000, 4000, runtime_ms);
+}
+
+int CudaQR_8k_4k(double *runtime_ms) {
+    return CudaQR(8000, 4000, runtime_ms);
+}
+
+int TileQR_16k_4k(double *runtime_ms) {
+    return TileQR(16000, 4000, runtime_ms);
+}
+
+int CudaQR_16k_4k(double *runtime_ms) {
+    return CudaQR(16000, 4000, runtime_ms);
+}
+
+
+
+int TileQR_4k_1k(double *runtime_ms) {
+    return TileQR(4000, 1000, runtime_ms);
+}
+
+int CudaQR_4k_1k(double *runtime_ms) {
+    return CudaQR(4000, 1000, runtime_ms);
+}
+
+int TileQR_4k_2k(double *runtime_ms) {
+    return TileQR(4000, 2000, runtime_ms);
+}
+
+int CudaQR_4k_2k(double *runtime_ms) {
+    return CudaQR(4000, 2000, runtime_ms);
+}
+
+int TileQR_4k_8k(double *runtime_ms) {
+    return TileQR(4000, 8000, runtime_ms);
+}
+
+int CudaQR_4k_8k(double *runtime_ms) {
+    return CudaQR(4000, 8000, runtime_ms);
+}
+
+int TileQR_4k_16k(double *runtime_ms) {
+    return TileQR(4000, 16000, runtime_ms);
+}
+
+int CudaQR_4k_16k(double *runtime_ms) {
+    return CudaQR(4000, 16000, runtime_ms);
+}
+

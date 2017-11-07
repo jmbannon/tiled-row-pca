@@ -128,6 +128,7 @@ pm.QR.R <- function(A)
 pm.QR.R2 <- function(A)
 {
   n <- ncol(A)
+  m <- nrow(A)
   colsToRid <- diff16(ncol(A))
   rowsToRid <- diff16(nrow(A))
   
@@ -180,9 +181,9 @@ pm.QR.R2 <- function(A)
   }
   
   #A <- A[1:(nrow(A) - rowsToRid), 1:(ncol(A) - colsToRid)]
-  A <- A[1:n, 1:n]
-  A[lower.tri(A)] <- 0
-  return(A)
+  #A <- A[1:n, 1:n]
+  #A[lower.tri(A)] <- 0
+  return(A[1:m, 1:n])
 }
 
 
@@ -582,4 +583,26 @@ pm.householderSign <- function(x)
     return(1)
   else
     return(-1)
+}
+
+buildQ <- function(A)
+{
+  Q <- diag(nrow(A))
+  for (i in 1:nrow(A))
+  {
+    e <- rep(0, i)
+    if (i != nrow(A))
+    {
+      v <- c(e, A[(i + 1):nrow(A), i])
+    } else {
+      v <- e
+    }
+    
+    e[i] <- 1
+    beta <- 2 / sum(x^2)
+    
+    Q_ = diag(nrow(A)) - (beta*(v%*%t(v)))
+    Q = Q_ %*% Q
+  }
+  return(Q)
 }

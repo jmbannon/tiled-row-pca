@@ -79,6 +79,7 @@ Matrix_init_constant(Matrix *mat,
     CHECK_ZERO_RETURN(res);
 
     int size = nr_rows * nr_cols;
+    
     for (int i = 0; i < size; i++) {
         mat->data[i] = constant;
     }
