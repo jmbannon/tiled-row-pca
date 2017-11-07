@@ -7,3 +7,6 @@ perf-row-tile-pca
 make.inc
 *.sh
 core
+.Rproj.user
+R/.Rhistory
+R/R.Rproj
