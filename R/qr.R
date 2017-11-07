@@ -62,6 +62,10 @@ pm.QR.R <- function(A)
       }))
     }
     
+    if (k == 1) {
+      print(A[1:16,])
+    }
+    
     if (k+1 <= p) for (n in (k+1):p)
     {
       nkBLK <- bl(n, k, b)
@@ -169,7 +173,7 @@ pm.QR.R2 <- function(A)
       
       if (k+1 <= q) for (m in (k+1):q)
       {
-        kmBLK <- bl(k, m, b)
+        kmBLK <- bl(ibeg, m, b)
         nmBLK <- bl(n, m, b)
         
         temp <- DSSRFB3(A[kmBLK$r, kmBLK$c], A[nmBLK$r, nmBLK$c], A[nkBLK$r, nkBLK$c], T1)
@@ -187,6 +191,163 @@ pm.QR.R2 <- function(A)
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+pm.QR.R3 <- function(A) {
+  n <- ncol(A)
+  m <- nrow(A)
+  colsToRid <- diff16(ncol(A))
+  rowsToRid <- diff16(nrow(A))
+  
+  A <- to16(A)
+  
+  b <- 16 # Block size
+  p <- as.integer(nrow(A) / b)
+  q <- as.integer(ncol(A) / b)
+  
+  T1 <- matrix(nrow = b, ncol = b)
+  
+  mt <- 0
+  domains <- list()
+  for (i in 1:4)
+  {
+      partitionSize <- m / 4
+      mt <- partitionSize / 16
+      start <- ((i - 1) * partitionSize) + 1
+      end <- (i * partitionSize)
+      domains[[i]] <- A[start:end, ]
+  }
+  
+  nextMt <- mt
+  proot <- 1
+  
+  for (k in 1:min(p,q))
+  {
+    
+    if (k > nextMt) {
+      proot <- proot + 1
+      nextMt <- nextMt + mt
+    }
+    
+    for (pi in proot:4) {
+      
+      ibeg <- 1
+      if (pi == proot) {
+        ibeg = k - ((proot - 1) * mt)
+      }
+      
+      m <- nrow(domains[[pi]])
+      p <- as.integer(nrow(domains[[pi]]) / b)
+
+      kkBLK <- bl(ibeg, k, b)
+      
+      cat(sprintf("performing dgeqt2 on %d | %d,%d\n", pi, ibeg, k))
+      kk <- DGEQT2(domains[[pi]][kkBLK$r, kkBLK$c])
+      T1 <- kk$T1
+      domains[[pi]][kkBLK$r, kkBLK$c] <- kk$RV
+      
+      if (k+1 <= q) for (n in (k+1):q)
+      {
+        knBLK <- bl(ibeg, n, b)
+        cat(sprintf("performing dlarfb on %d | %d,%d\n", pi, ibeg, n))
+        domains[[pi]][knBLK$r, knBLK$c] <- DLARFB(domains[[pi]][knBLK$r, knBLK$c], domains[[pi]][kkBLK$r, kkBLK$c], T1)
+      }
+      
+      if ((ibeg + 1) <= mt) for (n in (ibeg + 1):mt)
+      {
+        nkBLK <- bl(n, k, b)
+        print(nkBLK)
+          
+        nk <- DTSQT2(domains[[pi]][kkBLK$r, kkBLK$c], domains[[pi]][nkBLK$r, nkBLK$c])
+        
+        # Updates R section of k x k tile
+        domains[[pi]][kkBLK$r, kkBLK$c] <- nk$RV[1:b, 1:b]
+        
+        # Sets tile below k x k as householder reflectors (actual reflectors have an I matrix on top of it)
+        domains[[pi]][nkBLK$r, nkBLK$c] <- nk$RV[(b+1):(b*2), 1:b]
+        T1 <- nk$T1
+        
+        if (k+1 <= q) for (m in (k+1):q)
+        {
+          kmBLK <- bl(ibeg, m, b)
+          nmBLK <- bl(n, m, b)
+          
+          temp <- DSSRFB3(domains[[pi]][kmBLK$r, kmBLK$c], domains[[pi]][nmBLK$r, nmBLK$c], domains[[pi]][nkBLK$r, nkBLK$c], T1)
+          
+          domains[[pi]][kmBLK$r, kmBLK$c] <- temp[1:b, 1:b]
+          domains[[pi]][nmBLK$r, nmBLK$c] <- temp[(b+1):(b*2), 1:b]
+        }
+      }
+    }
+    
+    mergeEnd <- ceiling(log(4 - (proot - 1)) / log(2))
+    print("------------------")
+    for (mi in 1:mergeEnd) {
+      p1 = proot
+      p2 = p1 + 2^(mi - 1)
+      
+      while (p2 <= 4) {
+        print("merging:")
+        print(p1)
+        print(p2)
+        i1 <- 1
+        i2 <- 1
+        if (p1 == proot) {
+          i1 = k - ((proot - 1) * mt)
+        }
+        
+        i1kBLK <- bl(i1, k, b)
+        i2kBLK <- bl(i2, k, b)
+        
+        nk <- DTTQRT(domains[[p1]][i1kBLK$r, i1kBLK$c], domains[[p2]][i2kBLK$r, i2kBLK$c])
+        T1 <- nk$T1
+        
+        # Updates R section of k x k tile
+        domains[[p1]][i1kBLK$r, i1kBLK$c] <- nk$RV[1:b, 1:b]
+        # Sets tile below k x k as householder reflectors (actual reflectors have an I matrix on top of it)
+        Vi2k <- nk$RV[(b+1):(b*2), 1:b]
+        
+        if (k+1 <= q) for (ji in (k+1):q) {
+          i1jBLK <- bl(i1, ji, b)
+          i2jBLK <- bl(i2, ji, b)
+          
+          print(Vi2k)
+          temp <- DTTSSMQR(domains[[p1]][i1jBLK$r, i1jBLK$c], domains[[p2]][i2jBLK$r, i2jBLK$c], Vi2k, T1)
+          domains[[p1]][i1jBLK$r, i1jBLK$c] <- temp[1:b, 1:b]
+          domains[[p2]][i2jBLK$r, i2jBLK$c] <- temp[(b+1):(b*2), 1:b]
+        }
+        p1 <- p1 + 2^(mi)
+        p2 <- p2 + 2^(mi)
+      }
+    }
+  }
+  
+  m <- nrow(A)
+  for (i in 1:4)
+  {
+    partitionSize <- m / 4
+    start <- ((i - 1) * partitionSize) + 1
+    end <- (i * partitionSize)
+    A[start:end, ] <- domains[[i]]
+  }
+  
+  A <- A[1:(nrow(A) - rowsToRid), 1:(ncol(A) - colsToRid)]
+  A[lower.tri(A)] <- 0
+  return(A)
+}
 
 
 #' Helper function for pm.QR.R
@@ -605,4 +766,16 @@ buildQ <- function(A)
     Q = Q_ %*% Q
   }
   return(Q)
+}
+
+DTTQRT <- function(A_kk, B_1k) {
+  A_kk[lower.tri(A_kk)] <- 0
+  B_1k[lower.tri(B_1k)] <- 0
+  return(DGEQT2(rbind(A_kk, B_1k))) # QR
+}
+
+DTTSSMQR <- function(A_kj, B_1j, V_kj, T1_kj)
+{
+  V_mk_orig <- rbind(diag(nrow(T1_kj)), V_kj)
+  return(t(diag(nrow(V_mk_orig)) + (V_mk_orig %*% T1_kj %*% t(V_mk_orig))) %*% rbind(A_kj, B_1j))
 }
