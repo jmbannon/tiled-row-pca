@@ -17,8 +17,8 @@ typedef double Numeric;
  *
  *  GET_BLK_POS(i, j) position in column-major linear memory
  */
-#define BLK_LEN (4)
-#define BLK_SIZE (16)
+#define BLK_LEN (16)
+#define BLK_SIZE (BLK_LEN * BLK_LEN)
 
 #define BLK_LEN_MEM (BLK_LEN * sizeof(Numeric))
 #define BLK_SIZE_MEM (BLK_SIZE * sizeof(Numeric))
@@ -38,8 +38,8 @@ typedef double Numeric;
  *
  * GET_DBL_BLK_POS(i, j) position in column-major linear memory
  */
-#define DBL_BLK_LEN (8)
-#define DBL_BLK_SIZE (64)
+#define DBL_BLK_LEN (BLK_LEN * 2)
+#define DBL_BLK_SIZE (DBL_BLK_LEN * DBL_BLK_LEN)
 
 #define GET_DBL_BLK_POS(i, j) ((j) * DBL_BLK_LEN + (i))
 
