@@ -768,7 +768,7 @@ __global__ void dtsqt2_master(Numeric *M, int lbdm, int ki, int mi, int nr_blk_c
 }
 
 int powdown(int x) {
-  const int max = 256;
+  const int max = 128;
   int ans = 1;
   while ((ans * 2) <= x && (ans * 2) <= max) ans *= 2;
 
