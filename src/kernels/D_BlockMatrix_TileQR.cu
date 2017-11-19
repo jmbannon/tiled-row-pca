@@ -628,25 +628,10 @@ __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
   Numeric X[BLK_SIZE];
   Numeric Y[BLK_SIZE];
 
-   int k = ki - blockIdx.x;
-   int m = ki + blockIdx.x;
+  int k = ki - blockIdx.x;
+  int m = ki + blockIdx.x;
 
-   int nr_blks_to_process = nr_blk_cols - k - 1;
-   int div = nr_blks_to_process / blockDim.x;
-   int offset = nr_blks_to_process % blockDim.x;
-
-   int start_col;
-   int local_blks_to_process;
-  if (threadIdx.x < offset) {
-    start_col = threadIdx.x * (div + 1);
-    local_blks_to_process = div + 1;
-  } else {
-    start_col = (offset * (div + 1)) + ((threadIdx.x - offset) * div);
-    local_blks_to_process = div;
-  }
-  start_col += 1;
-
-  // printf("%d: %d %d %d\n", threadIdx.x, nr_blks_to_process, start_col, local_blks_to_process);
+  int nr_blks_to_process = nr_blk_cols - k - 1;
 
   if (threadIdx.x == 0) {
     for (int i = 0; i < BLK_SIZE; i++) {
@@ -655,22 +640,19 @@ __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
   }
 
   if (blockIdx.x == 0) {
-      Numeric *M_kk = &M[BLK_POS(k, k, nr_blk_cols)];
-      if (threadIdx.x == 0) {
-          blk_dgeqt2(M_kk, T);
-      }
-      __syncthreads();
+    Numeric *M_kk = &M[BLK_POS(k, k, nr_blk_cols)];
+    if (threadIdx.x == 0) {
+        blk_dgeqt2(M_kk, T);
+    }
+    __syncthreads();
 
-      //printf("dlarfb using %d threads\n", nr_blk_cols - k - 1);
-      if (nr_blks_to_process > 0) {
+    if (nr_blks_to_process > 0) {
 
-          for (int i = 0; i < local_blks_to_process; i++) {
-            // printf("dlarfb %d: %d %d\n", threadIdx.x, k, k + start_col + i);
-            Numeric *M_kn = &M[BLK_POS(k, k + start_col + i, nr_blk_cols)];
-            dlarfb(M_kn, M_kk, T, X, Y);
-          }
-          
+      for (int i = k + 1 + threadIdx.x; i < nr_blk_cols; i += blockDim.x) {
+        Numeric *M_kn = &M[BLK_POS(k, i, nr_blk_cols)];
+        dlarfb(M_kn, M_kk, T, X, Y);
       }
+    }
   } else {
     Numeric *A_mk = &M[BLK_POS(m, k, nr_blk_cols)];
 
@@ -683,14 +665,13 @@ __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
     __syncthreads();
 
     if (nr_blks_to_process > 0) {
-      for (int i = 0; i < local_blks_to_process; i++) {
-        // printf("dssrfb %d: k=%d %d %d\n", threadIdx.x, k, m, k + start_col + i);
-        Numeric *A_kn = &M[BLK_POS(k, k + start_col + i, nr_blk_cols)];
-        Numeric *A_mn = &M[BLK_POS(m, k + start_col + i, nr_blk_cols)];
+      for (int i = k + 1 + threadIdx.x; i < nr_blk_cols; i += blockDim.x) {
+        Numeric *A_kn = &M[BLK_POS(k, i, nr_blk_cols)];
+        Numeric *A_mn = &M[BLK_POS(m, i, nr_blk_cols)];
         dssrfb(A_kn, A_mn, A_mk, T, X, Y);
       }
-      
-    } 
+    }
+
   }
 }
 
@@ -703,21 +684,6 @@ __global__ void dtsqt2_master(Numeric *M, int lbdm, int ki, int mi, int nr_blk_c
   int m = mi + blockIdx.x;
 
   int nr_blks_to_process = nr_blk_cols - k - 1;
-   int div = nr_blks_to_process / blockDim.x;
-   int offset = nr_blks_to_process % blockDim.x;
-
-   int start_col;
-   int local_blks_to_process;
-  if (threadIdx.x < offset) {
-    start_col = threadIdx.x * (div + 1);
-    local_blks_to_process = div + 1;
-  } else {
-    start_col = (offset * (div + 1)) + ((threadIdx.x - offset) * div);
-    local_blks_to_process = div;
-  }
-  start_col += 1;
-
-
   Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
 
   if (threadIdx.x == 0) {
@@ -729,19 +695,17 @@ __global__ void dtsqt2_master(Numeric *M, int lbdm, int ki, int mi, int nr_blk_c
   __syncthreads();
 
   if (nr_blks_to_process > 0) {
-      for (int i = 0; i < local_blks_to_process; i++) {
-        // printf("dssrfb %d: k=%d %d %d\n", threadIdx.x, k, m, k + start_col + i);
-        Numeric *A_kn = &M[BLK_POS(k, k + start_col + i, nr_blk_cols)];
-        Numeric *A_mn = &M[BLK_POS(m, k + start_col + i, nr_blk_cols)];
-        dssrfb(A_kn, A_mn, A_mk, T, X, Y);
-      }
-      
-    } 
+    for (int i = k + 1 + threadIdx.x; i < nr_blk_cols; i += blockDim.x) {
+      Numeric *A_kn = &M[BLK_POS(k, i, nr_blk_cols)];
+      Numeric *A_mn = &M[BLK_POS(m, i, nr_blk_cols)];
+      dssrfb(A_kn, A_mn, A_mk, T, X, Y);
+    }
+  } 
 
 }
 
 int powdown(int x) {
-  const int max = 256;
+  const int max = 128;
   int ans = 1;
   while ((ans * 2) <= x && (ans * 2) <= max) ans *= 2;
   return ans;
