@@ -625,18 +625,22 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
 
 __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
   __shared__ Numeric T[BLK_SIZE];
+  __shared__ Numeric A_mk[BLK_SIZE];
+
+  Numeric A_kn[BLK_SIZE];
+  Numeric A_mn[BLK_SIZE];
   Numeric X[BLK_SIZE];
   Numeric Y[BLK_SIZE];
 
-   int k = ki - blockIdx.x;
-   int m = ki + blockIdx.x;
+  int k = ki - blockIdx.x;
+  int m = ki + blockIdx.x;
 
-   int nr_blks_to_process = nr_blk_cols - k - 1;
-   int div = nr_blks_to_process / blockDim.x;
-   int offset = nr_blks_to_process % blockDim.x;
+  int nr_blks_to_process = nr_blk_cols - k - 1;
+  int div = nr_blks_to_process / blockDim.x;
+  int offset = nr_blks_to_process % blockDim.x;
 
-   int start_col;
-   int local_blks_to_process;
+  int start_col;
+  int local_blks_to_process;
   if (threadIdx.x < offset) {
     start_col = threadIdx.x * (div + 1);
     local_blks_to_process = div + 1;
@@ -648,18 +652,26 @@ __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
 
   // printf("%d: %d %d %d\n", threadIdx.x, nr_blks_to_process, start_col, local_blks_to_process);
 
-  if (threadIdx.x == 0) {
-    for (int i = 0; i < BLK_SIZE; i++) {
-      T[i] = 0;
-    }
+  for (int tr = threadIdx.x; tr < BLK_SIZE; tr += blockDim.x) {
+    T[tr] = 0;
+    A_mk[tr] = M[BLK_POS(m, k, nr_blk_cols) + tr];
   }
+
+  __syncthreads();
 
   if (blockIdx.x == 0) {
       Numeric *M_kk = &M[BLK_POS(k, k, nr_blk_cols)];
+
+      // __shared__ Numeric M_kk[BLK_SIZE];
+      // for (int tr = threadIdx.x; tr < BLK_SIZE; tr += blockDim.x) {
+      //   M_kk[tr] = M[BLK_POS(k, k, nr_blk_cols) + tr];
+      // }
+      // __syncthreads();
+
       if (threadIdx.x == 0) {
           blk_dgeqt2(M_kk, T);
       }
-      __syncthreads();
+      // __syncthreads();
 
       //printf("dlarfb using %d threads\n", nr_blk_cols - k - 1);
       if (nr_blks_to_process > 0) {
@@ -671,26 +683,47 @@ __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
           }
           
       }
+
+      __syncthreads();
+      
+      // for (int tr = threadIdx.x; tr < BLK_SIZE; tr += blockDim.x) {
+      //   M[BLK_POS(k, k, nr_blk_cols) + tr] = M_kk[tr];
+      // }
   } else {
-    Numeric *A_mk = &M[BLK_POS(m, k, nr_blk_cols)];
+    // Numeric *A_mk = &M[BLK_POS(m, k, nr_blk_cols)];
 
     if (threadIdx.x == 0) {
       Numeric Rbind[2 * BLK_SIZE];
 
       Numeric *A_kk = &M[BLK_POS(k, k, nr_blk_cols)];
       dtsqt2(A_kk, A_mk, T, Rbind);
+
     }
     __syncthreads();
 
     if (nr_blks_to_process > 0) {
       for (int i = 0; i < local_blks_to_process; i++) {
-        // printf("dssrfb %d: k=%d %d %d\n", threadIdx.x, k, m, k + start_col + i);
-        Numeric *A_kn = &M[BLK_POS(k, k + start_col + i, nr_blk_cols)];
-        Numeric *A_mn = &M[BLK_POS(m, k + start_col + i, nr_blk_cols)];
+
+        for (int tr = 0; tr < BLK_SIZE; tr++) {
+          A_kn[tr] = M[BLK_POS(k, k + start_col + i, nr_blk_cols) + tr];
+          A_mn[tr] = M[BLK_POS(m, k + start_col + i, nr_blk_cols) + tr];
+        }
+
+        // Numeric *A_kn = &M[BLK_POS(k, k + start_col + i, nr_blk_cols)];
+        // Numeric *A_mn = &M[BLK_POS(m, k + start_col + i, nr_blk_cols)];
         dssrfb(A_kn, A_mn, A_mk, T, X, Y);
+
+        for (int tr = 0; tr < BLK_SIZE; tr++) {
+          M[BLK_POS(k, k + start_col + i, nr_blk_cols) + tr] = A_kn[tr];
+          M[BLK_POS(m, k + start_col + i, nr_blk_cols) + tr] = A_mn[tr];
+        }
       }
       
-    } 
+    }
+    __syncthreads();
+    for (int tr = threadIdx.x; tr < BLK_SIZE; tr += blockDim.x) {
+      M[BLK_POS(m, k, nr_blk_cols) + tr] = A_mk[tr];
+    }
   }
 }
 
@@ -699,8 +732,20 @@ __global__ void dtsqt2_master(Numeric *M, int lbdm, int ki, int mi, int nr_blk_c
   Numeric X[BLK_SIZE];
   Numeric Y[BLK_SIZE];
 
+  __shared__ Numeric A_mk[BLK_SIZE];
+  __shared__ Numeric A_kk[BLK_SIZE];
+
+  Numeric A_kn[BLK_SIZE];
+  Numeric A_mn[BLK_SIZE];
+
   int k = ki - blockIdx.x;
   int m = mi + blockIdx.x;
+
+  for (int tr = threadIdx.x; tr < BLK_SIZE; tr += blockDim.x) {
+    A_mk[tr] = M[BLK_POS(m, k, lbdm) + tr];
+    A_kk[tr] = M[BLK_POS(k, k, lbdm) + tr];
+  }
+  __syncthreads();
 
   int nr_blks_to_process = nr_blk_cols - k - 1;
    int div = nr_blks_to_process / blockDim.x;
@@ -718,12 +763,12 @@ __global__ void dtsqt2_master(Numeric *M, int lbdm, int ki, int mi, int nr_blk_c
   start_col += 1;
 
 
-  Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
+  // Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
 
   if (threadIdx.x == 0) {
     Numeric Rbind[2 * BLK_SIZE];
 
-    Numeric *A_kk = &M[BLK_POS(k, k, lbdm)];
+    // Numeric *A_kk = &M[BLK_POS(k, k, lbdm)];
     dtsqt2(A_kk, A_mk, T, Rbind);
   }
   __syncthreads();
@@ -731,12 +776,29 @@ __global__ void dtsqt2_master(Numeric *M, int lbdm, int ki, int mi, int nr_blk_c
   if (nr_blks_to_process > 0) {
       for (int i = 0; i < local_blks_to_process; i++) {
         // printf("dssrfb %d: k=%d %d %d\n", threadIdx.x, k, m, k + start_col + i);
-        Numeric *A_kn = &M[BLK_POS(k, k + start_col + i, nr_blk_cols)];
-        Numeric *A_mn = &M[BLK_POS(m, k + start_col + i, nr_blk_cols)];
+
+        for (int tr = 0; tr < BLK_SIZE; tr++) {
+          A_kn[tr] = M[BLK_POS(k, k + start_col + i, nr_blk_cols) + tr];
+          A_mn[tr] = M[BLK_POS(m, k + start_col + i, nr_blk_cols) + tr];
+        }
+        
         dssrfb(A_kn, A_mn, A_mk, T, X, Y);
+
+        for (int tr = 0; tr < BLK_SIZE; tr++) {
+          M[BLK_POS(k, k + start_col + i, nr_blk_cols) + tr] = A_kn[tr];
+          M[BLK_POS(m, k + start_col + i, nr_blk_cols) + tr] = A_mn[tr];
+        }
       }
       
-    } 
+  }
+
+  __syncthreads();
+
+  for (int tr = threadIdx.x; tr < BLK_SIZE; tr += blockDim.x) {
+    M[BLK_POS(m, k, lbdm) + tr] = A_mk[tr];
+    M[BLK_POS(k, k, lbdm) + tr] = A_kk[tr];
+  }
+  __syncthreads();
 
 }
 

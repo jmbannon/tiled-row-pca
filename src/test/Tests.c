@@ -35,10 +35,10 @@ void addAllTests() {
 	// addTest("Test_TileQR_71_29_st", Test_TileQR_71_29_st);
 
 	addTest("Test_TileQR_17_21_mt", Test_TileQR_17_21_mt);
-	addTest("Test_TileQR_1027_67_mt", Test_TileQR_1027_67_mt);
-	addTest("Test_TileQR_67_1027_mt", Test_TileQR_67_1027_mt);
-	addTest("Test_TileQR_71_29_mt", Test_TileQR_71_29_mt);
-	addTest("Test_TileQR_20k_4k_mt", Test_TileQR_20k_4k_mt);
+	// addTest("Test_TileQR_1027_67_mt", Test_TileQR_1027_67_mt);
+	// addTest("Test_TileQR_67_1027_mt", Test_TileQR_67_1027_mt);
+	// addTest("Test_TileQR_71_29_mt", Test_TileQR_71_29_mt);
+	// addTest("Test_TileQR_20k_4k_mt", Test_TileQR_20k_4k_mt);
 }
 
 int TestAll() {

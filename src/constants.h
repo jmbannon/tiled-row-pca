@@ -17,7 +17,7 @@ typedef double Numeric;
  *
  *  GET_BLK_POS(i, j) position in column-major linear memory
  */
-#define BLK_LEN (16)
+#define BLK_LEN (4)
 #define BLK_SIZE (BLK_LEN * BLK_LEN)
 
 #define BLK_LEN_MEM (BLK_LEN * sizeof(Numeric))
