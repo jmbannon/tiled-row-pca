@@ -628,6 +628,9 @@ __global__ void tile_qr_kernel(Numeric *M, int ki, int mi, int nr_blk_cols, bool
 
   __shared__ Numeric T[BLK_SIZE];
   __shared__ Numeric A_mk[BLK_SIZE];
+  Numeric A_kn[BLK_SIZE];
+  Numeric A_mn[BLK_SIZE];
+
   Numeric Rbind[2 * BLK_SIZE];
   Numeric *X = Rbind;
   Numeric *Y = &Rbind[BLK_SIZE];
@@ -650,8 +653,16 @@ __global__ void tile_qr_kernel(Numeric *M, int ki, int mi, int nr_blk_cols, bool
 
     if (nr_blks_to_process > 0) {
       for (int i = k + 1 + threadIdx.x; i < nr_blk_cols; i += blockDim.x) {
-        Numeric *A_kn = &M[BLK_POS(k, i, nr_blk_cols)];
+
+        for (int tr = 0; tr < BLK_SIZE; tr++) {
+          A_kn[tr] = M[BLK_POS(k, i, nr_blk_cols) + tr];
+        }
+
         dlarfb(A_kn, A_mk, T, X, Y);
+
+        for (int tr = 0; tr < BLK_SIZE; tr++) {
+          M[BLK_POS(k, i, nr_blk_cols) + tr] = A_kn[tr];
+        }
       }
       __syncthreads();
     }
@@ -665,9 +676,22 @@ __global__ void tile_qr_kernel(Numeric *M, int ki, int mi, int nr_blk_cols, bool
 
     if (nr_blks_to_process > 0) {
       for (int i = k + 1 + threadIdx.x; i < nr_blk_cols; i += blockDim.x) {
-        Numeric *A_kn = &M[BLK_POS(k, i, nr_blk_cols)];
-        Numeric *A_mn = &M[BLK_POS(m, i, nr_blk_cols)];
+
+        for (int tr = 0; tr < BLK_SIZE; tr++) {
+          A_kn[tr] = M[BLK_POS(k, i, nr_blk_cols) + tr];
+        }
+        for (int tr = 0; tr < BLK_SIZE; tr++) {
+          A_mn[tr] = M[BLK_POS(m, i, nr_blk_cols) + tr];
+        }
+
         dssrfb(A_kn, A_mn, A_mk, T, X, Y);
+
+        for (int tr = 0; tr < BLK_SIZE; tr++) {
+          M[BLK_POS(k, i, nr_blk_cols) + tr] = A_kn[tr];
+        }
+        for (int tr = 0; tr < BLK_SIZE; tr++) {
+          M[BLK_POS(m, i, nr_blk_cols) + tr] = A_mn[tr];
+        }
       }
       __syncthreads();
     }
