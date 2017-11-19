@@ -624,6 +624,8 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
 //////////////////////
 
 __global__ void tile_qr_kernel(Numeric *M, int ki, int mi, int nr_blk_cols, bool dgeqt2) {
+  extern __shared__ Numeric A[];
+
   __shared__ Numeric T[BLK_SIZE];
   __shared__ Numeric A_mk[BLK_SIZE];
   Numeric Rbind[2 * BLK_SIZE];
@@ -638,8 +640,6 @@ __global__ void tile_qr_kernel(Numeric *M, int ki, int mi, int nr_blk_cols, bool
     A_mk[tr] = M[BLK_POS(m, k, nr_blk_cols) + tr];
   }
   __syncthreads();
-
-  // Numeric *A_mk = &M[BLK_POS(m, k, nr_blk_cols)];
   
   if (blockIdx.x == 0 && dgeqt2) {
 
@@ -697,6 +697,7 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
 
   int blocks = 1;
   int threads = powdown(blk_n - 1);
+  int shared_mem = threads * BLK_SIZE_MEM * 2;
 
   tile_qr_kernel<<<blocks, threads>>>(M, 0, 0, blk_n, true);
 
@@ -706,11 +707,13 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
   while (i < min_blk_d && i < blk_n) {
     blocks = (i + i) < blk_m ? i + 1 : blk_m - i;
     threads = powdown(blk_n - i - 1 + blocks);
+    shared_mem = threads * BLK_SIZE_MEM * 2;
 
     tile_qr_kernel<<<blocks, threads>>>(M, i, i, blk_n, true);
 
     blocks = (i + i + 1) < blk_m ? i + 1 : blk_m - i - 1;
     threads = powdown(blk_n - i - 1 + blocks);
+    shared_mem = threads * BLK_SIZE_MEM * 2;
 
     tile_qr_kernel<<<blocks, threads>>>(M, i, i + 1, blk_n, false);
     ++i;
@@ -720,6 +723,7 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
   while (i < blk_m) {
     blocks = (i + blk_n) <= blk_m ? min_blk_d : blk_m - i;
     threads = powdown(blocks);
+    shared_mem = threads * BLK_SIZE_MEM * 2;
 
     tile_qr_kernel<<<blocks, threads>>>(M, blk_n - 1, i, blk_n, false);
     ++i;
