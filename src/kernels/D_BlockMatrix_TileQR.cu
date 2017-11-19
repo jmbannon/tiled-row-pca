@@ -646,21 +646,6 @@ __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
   __syncthreads();
 
   int nr_blks_to_process = nr_blk_cols - k - 1;
-  int div = nr_blks_to_process / blockDim.x;
-  int offset = nr_blks_to_process % blockDim.x;
-
-  int start_col;
-  int local_blks_to_process;
-  if (threadIdx.x < offset) {
-    start_col = threadIdx.x * (div + 1);
-    local_blks_to_process = div + 1;
-  } else {
-    start_col = (offset * (div + 1)) + ((threadIdx.x - offset) * div);
-    local_blks_to_process = div;
-  }
-  start_col += 1;
-
-  
 
   if (blockIdx.x == 0) {
     // Numeric *A_kk = &M[BLK_POS(k, k, nr_blk_cols)];
@@ -672,16 +657,16 @@ __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
 
     if (nr_blks_to_process > 0) {
 
-      for (int i = 0; i < local_blks_to_process; i++) {
+      for (int i = k + 1 + threadIdx.x; i < nr_blk_cols; i += blockDim.x) {
 
         for (int tr = 0; tr < BLK_SIZE; tr++) {
-          A_kn[tr] = M[BLK_POS(k, k + start_col + i, nr_blk_cols) + tr];
+          A_kn[tr] = M[BLK_POS(k, i, nr_blk_cols) + tr];
         }
 
         dlarfb(A_kn, A_mk, T, X, Y);
 
         for (int tr = 0; tr < BLK_SIZE; tr++) {
-          M[BLK_POS(k, k + start_col + i, nr_blk_cols) + tr] = A_kn[tr];
+          M[BLK_POS(k, i, nr_blk_cols) + tr] = A_kn[tr];
         }
       }
       __syncthreads();
@@ -701,18 +686,18 @@ __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
     __syncthreads();
 
     if (nr_blks_to_process > 0) {
-      for (int i = 0; i < local_blks_to_process; i++) {
+      for (int i = k + 1 + threadIdx.x; i < nr_blk_cols; i += blockDim.x) {
 
         for (int tr = 0; tr < BLK_SIZE; tr++) {
-          A_kn[tr] = M[BLK_POS(k, k + start_col + i, nr_blk_cols) + tr];
-          A_mn[tr] = M[BLK_POS(m, k + start_col + i, nr_blk_cols) + tr];
+          A_kn[tr] = M[BLK_POS(k, i, nr_blk_cols) + tr];
+          A_mn[tr] = M[BLK_POS(m, i, nr_blk_cols) + tr];
         }
 
         dssrfb(A_kn, A_mn, A_mk, T, X, Y);
 
         for (int tr = 0; tr < BLK_SIZE; tr++) {
-          M[BLK_POS(k, k + start_col + i, nr_blk_cols) + tr] = A_kn[tr];
-          M[BLK_POS(m, k + start_col + i, nr_blk_cols) + tr] = A_mn[tr];
+          M[BLK_POS(k, i, nr_blk_cols) + tr] = A_kn[tr];
+          M[BLK_POS(m, i, nr_blk_cols) + tr] = A_mn[tr];
         }
       }
       __syncthreads();
@@ -745,20 +730,6 @@ __global__ void dtsqt2_master(Numeric *M, int lbdm, int ki, int mi, int nr_blk_c
   __syncthreads();
 
   int nr_blks_to_process = nr_blk_cols - k - 1;
-  int div = nr_blks_to_process / blockDim.x;
-  int offset = nr_blks_to_process % blockDim.x;
-
-  int start_col;
-  int local_blks_to_process;
-  if (threadIdx.x < offset) {
-    start_col = threadIdx.x * (div + 1);
-    local_blks_to_process = div + 1;
-  } else {
-    start_col = (offset * (div + 1)) + ((threadIdx.x - offset) * div);
-    local_blks_to_process = div;
-  }
-  start_col += 1;
-
 
   // Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
 
@@ -770,19 +741,19 @@ __global__ void dtsqt2_master(Numeric *M, int lbdm, int ki, int mi, int nr_blk_c
   __syncthreads();
 
   if (nr_blks_to_process > 0) {
-      for (int i = 0; i < local_blks_to_process; i++) {
+      for (int i = k + 1 + threadIdx.x; i < nr_blk_cols; i += blockDim.x) {
         // printf("dssrfb %d: k=%d %d %d\n", threadIdx.x, k, m, k + start_col + i);
 
         for (int tr = 0; tr < BLK_SIZE; tr++) {
-          A_kn[tr] = M[BLK_POS(k, k + start_col + i, nr_blk_cols) + tr];
-          A_mn[tr] = M[BLK_POS(m, k + start_col + i, nr_blk_cols) + tr];
+          A_kn[tr] = M[BLK_POS(k, i, nr_blk_cols) + tr];
+          A_mn[tr] = M[BLK_POS(m, i, nr_blk_cols) + tr];
         }
         
         dssrfb(A_kn, A_mn, A_mk, T, X, Y);
 
         for (int tr = 0; tr < BLK_SIZE; tr++) {
-          M[BLK_POS(k, k + start_col + i, nr_blk_cols) + tr] = A_kn[tr];
-          M[BLK_POS(m, k + start_col + i, nr_blk_cols) + tr] = A_mn[tr];
+          M[BLK_POS(k, i, nr_blk_cols) + tr] = A_kn[tr];
+          M[BLK_POS(m, i, nr_blk_cols) + tr] = A_mn[tr];
         }
       }
       
