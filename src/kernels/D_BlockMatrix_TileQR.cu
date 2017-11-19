@@ -634,12 +634,6 @@ __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
 
   int nr_blks_to_process = nr_blk_cols - k - 1;
 
-  if (threadIdx.x == 0) {
-    for (int i = 0; i < BLK_SIZE; i++) {
-      T[i] = 0;
-    }
-  }
-
   if (blockIdx.x == 0) {
     Numeric *M_kk = &M[BLK_POS(k, k, nr_blk_cols)];
     if (threadIdx.x == 0) {
