@@ -535,6 +535,90 @@ __device__ void dlarfb(Numeric *A, Numeric *Y, Numeric *T, Numeric *Q, Numeric *
   }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// TileQR
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+__device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, int blk_n)
+{
+  int res;
+  Numeric *T;
+  Numeric *Rbind;
+  Numeric *Q;
+  Numeric *Q_;
+
+  int min_blk_d = blk_m > blk_n ? blk_n : blk_m;
+
+  res = cudaMalloc(&T, BLK_SIZE_MEM);
+  CHECK_SUCCESS_RETURN(res);
+
+  res = cudaMalloc(&Rbind, 2 * BLK_SIZE_MEM);
+  CHECK_SUCCESS_RETURN(res);
+
+  res = cudaMalloc(&Q, BLK_SIZE_MEM);
+  CHECK_SUCCESS_RETURN(res);
+
+  res = cudaMalloc(&Q_, BLK_SIZE_MEM);
+  CHECK_SUCCESS_RETURN(res);
+
+  for (int i = 0; i < BLK_SIZE; i++) {
+    T[i] = 0;
+    Q[i] = 0;
+    Q_[i] = 0;
+    Rbind[i] = 0;    
+  }
+
+  for (int i = BLK_SIZE; i < 2*BLK_SIZE; i++) {
+    Rbind[i] = 0;
+  }
+
+  for (int k = 0; k < min_blk_d; k++) {
+    Numeric *A_kk = &A[BLK_POS(k, k, blk_n)];
+
+    blk_dgeqt2(A_kk, T);
+
+    for (int n = (k + 1); n < blk_n; n++) {
+
+      Numeric *A_kn = &A[BLK_POS(k, n, blk_n)];
+
+      dlarfb(A_kn, A_kk, T, Q, Q_);
+    }
+
+    for (int m = (k + 1); m < blk_m; m++) {
+
+      Numeric *A_mk = &A[BLK_POS(m, k, blk_n)];
+      for (int i = 0; i < BLK_SIZE; i++) {
+        T[i] = 0;  
+      }
+
+      dtsqt2(A_kk, A_mk, T, Rbind);
+
+      for (int n = (k + 1); n < blk_n; n++) {
+        Numeric *A_kn = &A[BLK_POS(k, n, blk_n)];
+        Numeric *A_mn = &A[BLK_POS(m, n, blk_n)];
+
+        dssrfb(A_kn, A_mn, A_mk, T, Q, Q_);
+
+        cudaDeviceSynchronize();
+      }
+    }
+  }
+
+  res = cudaFree(T);
+  CHECK_SUCCESS_RETURN(res);
+
+  res = cudaFree(Rbind);
+  CHECK_SUCCESS_RETURN(res);
+
+  res = cudaFree(Q);
+  CHECK_SUCCESS_RETURN(res);
+
+  res = cudaFree(Q_);
+  CHECK_SUCCESS_RETURN(res);
+
+  return 0;
+}
+
 //////////////////////
 // Parallel QR
 //////////////////////
@@ -548,25 +632,24 @@ __global__ void tile_qr_kernel(Numeric *M, int ki, int mi, int nr_blk_cols, bool
   int k = ki - blockIdx.x;
   int m = mi + blockIdx.x;
   int nr_blks_to_process = nr_blk_cols - k - 1;
+
+  Numeric *A_mk = &M[BLK_POS(m, k, nr_blk_cols)];
   
   if (blockIdx.x == 0 && dgeqt2) {
 
-    Numeric *M_kk = &M[BLK_POS(k, k, nr_blk_cols)];
     if (threadIdx.x == 0) {
-        blk_dgeqt2(M_kk, T);
+        blk_dgeqt2(A_mk, T);
     }
     __syncthreads();
 
     if (nr_blks_to_process > 0) {
 
       for (int i = k + 1 + threadIdx.x; i < nr_blk_cols; i += blockDim.x) {
-        Numeric *M_kn = &M[BLK_POS(k, i, nr_blk_cols)];
-        dlarfb(M_kn, M_kk, T, X, Y);
+        Numeric *A_kn = &M[BLK_POS(k, i, nr_blk_cols)];
+        dlarfb(A_kn, A_mk, T, X, Y);
       }
     }
   } else {
-    
-    Numeric *A_mk = &M[BLK_POS(m, k, nr_blk_cols)];
 
     if (threadIdx.x == 0) {
       Numeric *A_kk = &M[BLK_POS(k, k, nr_blk_cols)];
