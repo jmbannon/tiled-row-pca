@@ -649,11 +649,11 @@ __global__ void tile_qr_kernel(Numeric *M, int ki, int mi, int nr_blk_cols, bool
     __syncthreads();
 
     if (nr_blks_to_process > 0) {
-
       for (int i = k + 1 + threadIdx.x; i < nr_blk_cols; i += blockDim.x) {
         Numeric *A_kn = &M[BLK_POS(k, i, nr_blk_cols)];
         dlarfb(A_kn, A_mk, T, X, Y);
       }
+      __syncthreads();
     }
   } else {
 
@@ -669,11 +669,11 @@ __global__ void tile_qr_kernel(Numeric *M, int ki, int mi, int nr_blk_cols, bool
         Numeric *A_mn = &M[BLK_POS(m, i, nr_blk_cols)];
         dssrfb(A_kn, A_mn, A_mk, T, X, Y);
       }
+      __syncthreads();
     }
 
   }
 
-  __syncthreads();
   for (int tr = threadIdx.x; tr < BLK_SIZE; tr += blockDim.x) {
     M[BLK_POS(m, k, nr_blk_cols) + tr] = A_mk[tr];
   }
