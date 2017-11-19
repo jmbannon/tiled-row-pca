@@ -786,6 +786,7 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
 
   int blocks = 1;
   int threads = powdown(blk_n - 1);
+  int shared_mem = threads * BLK_SIZE_MEM * 2;
 
   // printf("blocks: %d, threads: %d\n", 1, blk_n - 1);
   dgeqt2_master<<<blocks, threads>>>(M, blk_n, 0, blk_n);
@@ -797,12 +798,14 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
   while (i < min_blk_d && i < blk_n) {
     blocks = (i + i) < blk_m ? i + 1 : blk_m - i;
     threads = powdown(blk_n - i - 1 + blocks);
+    shared_mem = threads * BLK_SIZE_MEM * 2;
 
     // printf("blocks: %d, threads: %d\n", blocks, blk_n - i - 1 + blocks);
     dgeqt2_master<<<blocks, threads>>>(M, blk_n, i, blk_n);
 
     blocks = (i + i + 1) < blk_m ? i + 1 : blk_m - i - 1;
     threads = powdown(blk_n - i - 1 + blocks);
+    shared_mem = threads * BLK_SIZE_MEM * 2;
 
     // printf("blocks: %d, threads: %d\n", blocks, blk_n - i - 1 + blocks);
     dtsqt2_master<<<blocks, threads>>>(M, blk_n, i, i + 1, blk_n);
@@ -813,6 +816,7 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
   while (i < blk_m) {
     blocks = (i + blk_n) <= blk_m ? min_blk_d : blk_m - i;
     threads = powdown(blocks);
+    shared_mem = threads * BLK_SIZE_MEM * 2;
 
     // printf("blocks: %d, threads: %d\n", blocks, blocks);
     dtsqt2_master<<<blocks, threads>>>(M, blk_n, blk_n - 1, i, blk_n);
