@@ -34,12 +34,12 @@ typedef double Numeric;
 /** Double Block Attributes
  *
  * DBL_BLK_LEN   must be 2 * BLK_LEN
- * DBL_BLK_SIZE  DBL_BLK_LEN^2
+ * DBL_BLK_SIZE  DBL_BLK_LEN * BLK_LEN
  *
  * GET_DBL_BLK_POS(i, j) position in column-major linear memory
  */
 #define DBL_BLK_LEN (BLK_LEN * 2)
-#define DBL_BLK_SIZE (DBL_BLK_LEN * DBL_BLK_LEN)
+#define DBL_BLK_SIZE (DBL_BLK_LEN * BLK_LEN)
 
 #define GET_DBL_BLK_POS(i, j) ((j) * DBL_BLK_LEN + (i))
 
