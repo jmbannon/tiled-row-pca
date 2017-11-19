@@ -723,9 +723,23 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
   int threads = powdown(blk_n - 1);
   int shared_mem = threads * BLK_SIZE_MEM * 2;
 
-  tile_qr_kernel<<<blocks, threads>>>(M, 0, 0, blk_n, true);
+  cudaError_t error;
 
-  tile_qr_kernel<<<blocks, threads>>>(M, 0, 1, blk_n, false);
+  tile_qr_kernel<<<blocks, threads, shared_mem>>>(M, 0, 0, blk_n, true);
+  cudaDeviceSynchronize();
+  error = cudaGetLastError();
+  if (error != 0) {
+    printf("1 ERROR CODE %s\n%d %d %d", cudaGetErrorString(error), blocks, threads, shared_mem);
+    return 1;
+  }
+
+  tile_qr_kernel<<<blocks, threads, shared_mem>>>(M, 0, 1, blk_n, false);
+  cudaDeviceSynchronize();
+  error = cudaGetLastError();
+  if (error != 0) {
+    printf("2 ERROR CODE %s\n%d %d %d", cudaGetErrorString(error), blocks, threads, shared_mem);
+    return 1;
+  }
 
   int i = 1;
   while (i < min_blk_d && i < blk_n) {
@@ -733,13 +747,27 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
     threads = powdown(blk_n - i - 1 + blocks);
     shared_mem = threads * BLK_SIZE_MEM * 2;
 
-    tile_qr_kernel<<<blocks, threads>>>(M, i, i, blk_n, true);
+    tile_qr_kernel<<<blocks, threads, shared_mem>>>(M, i, i, blk_n, true);
+    cudaDeviceSynchronize();
+    error = cudaGetLastError();
+    if (error != 0) {
+      printf("3 ERROR CODE %s\n%d %d %d", cudaGetErrorString(error), blocks, threads, shared_mem);
+      return 1;
+    }
 
     blocks = (i + i + 1) < blk_m ? i + 1 : blk_m - i - 1;
     threads = powdown(blk_n - i - 1 + blocks);
     shared_mem = threads * BLK_SIZE_MEM * 2;
 
-    tile_qr_kernel<<<blocks, threads>>>(M, i, i + 1, blk_n, false);
+    if (blocks > 0) {
+      tile_qr_kernel<<<blocks, threads, shared_mem>>>(M, i, i + 1, blk_n, false);
+      cudaDeviceSynchronize();
+      error = cudaGetLastError();
+      if (error != 0) {
+        printf("4 ERROR CODE %s\n%d %d %d", cudaGetErrorString(error), blocks, threads, shared_mem);
+        return 1;
+      }
+    }
     ++i;
   }
 
@@ -749,7 +777,13 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
     threads = powdown(blocks);
     shared_mem = threads * BLK_SIZE_MEM * 2;
 
-    tile_qr_kernel<<<blocks, threads>>>(M, blk_n - 1, i, blk_n, false);
+    tile_qr_kernel<<<blocks, threads, shared_mem>>>(M, blk_n - 1, i, blk_n, false);
+    cudaDeviceSynchronize();
+    error = cudaGetLastError();
+    if (error != 0) {
+      printf("5 ERROR CODE %s\n%d %d %d", cudaGetErrorString(error), blocks, threads, shared_mem);
+      return 1;
+    }
     ++i;
   }
 
