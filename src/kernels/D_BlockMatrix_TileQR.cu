@@ -535,106 +535,22 @@ __device__ void dlarfb(Numeric *A, Numeric *Y, Numeric *T, Numeric *Q, Numeric *
   }
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// TileQR
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-__device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, int blk_n)
-{
-  int res;
-  Numeric *T;
-  Numeric *Rbind;
-  Numeric *Q;
-  Numeric *Q_;
-
-  int min_blk_d = blk_m > blk_n ? blk_n : blk_m;
-
-  res = cudaMalloc(&T, BLK_SIZE_MEM);
-  CHECK_SUCCESS_RETURN(res);
-
-  res = cudaMalloc(&Rbind, 2 * BLK_SIZE_MEM);
-  CHECK_SUCCESS_RETURN(res);
-
-  res = cudaMalloc(&Q, BLK_SIZE_MEM);
-  CHECK_SUCCESS_RETURN(res);
-
-  res = cudaMalloc(&Q_, BLK_SIZE_MEM);
-  CHECK_SUCCESS_RETURN(res);
-
-  for (int i = 0; i < BLK_SIZE; i++) {
-    T[i] = 0;
-    Q[i] = 0;
-    Q_[i] = 0;
-    Rbind[i] = 0;    
-  }
-
-  for (int i = BLK_SIZE; i < 2*BLK_SIZE; i++) {
-    Rbind[i] = 0;
-  }
-
-  for (int k = 0; k < min_blk_d; k++) {
-    Numeric *A_kk = &A[BLK_POS(k, k, blk_n)];
-
-    blk_dgeqt2(A_kk, T);
-
-    for (int n = (k + 1); n < blk_n; n++) {
-
-      Numeric *A_kn = &A[BLK_POS(k, n, blk_n)];
-
-      dlarfb(A_kn, A_kk, T, Q, Q_);
-    }
-
-    for (int m = (k + 1); m < blk_m; m++) {
-
-      Numeric *A_mk = &A[BLK_POS(m, k, blk_n)];
-      for (int i = 0; i < BLK_SIZE; i++) {
-        T[i] = 0;  
-      }
-
-      dtsqt2(A_kk, A_mk, T, Rbind);
-
-      for (int n = (k + 1); n < blk_n; n++) {
-        Numeric *A_kn = &A[BLK_POS(k, n, blk_n)];
-        Numeric *A_mn = &A[BLK_POS(m, n, blk_n)];
-
-        dssrfb(A_kn, A_mn, A_mk, T, Q, Q_);
-
-        cudaDeviceSynchronize();
-      }
-    }
-  }
-
-  res = cudaFree(T);
-  CHECK_SUCCESS_RETURN(res);
-
-  res = cudaFree(Rbind);
-  CHECK_SUCCESS_RETURN(res);
-
-  res = cudaFree(Q);
-  CHECK_SUCCESS_RETURN(res);
-
-  res = cudaFree(Q_);
-  CHECK_SUCCESS_RETURN(res);
-
-  return 0;
-}
-
 //////////////////////
 // Parallel QR
 //////////////////////
 
-__global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
+__global__ void tile_qr_kernel(Numeric *M, int ki, int mi, int nr_blk_cols, bool dgeqt2) {
   __shared__ Numeric T[BLK_SIZE];
   Numeric Rbind[2 * BLK_SIZE];
   Numeric *X = Rbind;
   Numeric *Y = &Rbind[BLK_SIZE];
 
   int k = ki - blockIdx.x;
-  int m = ki + blockIdx.x;
-
+  int m = mi + blockIdx.x;
   int nr_blks_to_process = nr_blk_cols - k - 1;
+  
+  if (blockIdx.x == 0 && dgeqt2) {
 
-  if (blockIdx.x == 0) {
     Numeric *M_kk = &M[BLK_POS(k, k, nr_blk_cols)];
     if (threadIdx.x == 0) {
         blk_dgeqt2(M_kk, T);
@@ -649,6 +565,7 @@ __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
       }
     }
   } else {
+    
     Numeric *A_mk = &M[BLK_POS(m, k, nr_blk_cols)];
 
     if (threadIdx.x == 0) {
@@ -666,34 +583,6 @@ __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
     }
 
   }
-}
-
-__global__ void dtsqt2_master(Numeric *M, int lbdm, int ki, int mi, int nr_blk_cols) {
-  __shared__ Numeric T[BLK_SIZE];
-  Numeric Rbind[2 * BLK_SIZE];
-  Numeric *X = Rbind;
-  Numeric *Y = &Rbind[BLK_SIZE];
-
-  int k = ki - blockIdx.x;
-  int m = mi + blockIdx.x;
-
-  int nr_blks_to_process = nr_blk_cols - k - 1;
-  Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
-
-  if (threadIdx.x == 0) {
-    Numeric *A_kk = &M[BLK_POS(k, k, lbdm)];
-    dtsqt2(A_kk, A_mk, T, Rbind);
-  }
-  __syncthreads();
-
-  if (nr_blks_to_process > 0) {
-    for (int i = k + 1 + threadIdx.x; i < nr_blk_cols; i += blockDim.x) {
-      Numeric *A_kn = &M[BLK_POS(k, i, nr_blk_cols)];
-      Numeric *A_mn = &M[BLK_POS(m, i, nr_blk_cols)];
-      dssrfb(A_kn, A_mn, A_mk, T, X, Y);
-    }
-  } 
-
 }
 
 int powdown(int x) {
@@ -715,21 +604,21 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
   int blocks = 1;
   int threads = powdown(blk_n - 1);
 
-  dgeqt2_master<<<blocks, threads>>>(M, blk_n, 0, blk_n);
+  tile_qr_kernel<<<blocks, threads>>>(M, 0, 0, blk_n, true);
 
-  dtsqt2_master<<<blocks, threads>>>(M, blk_n, 0, 1, blk_n);
+  tile_qr_kernel<<<blocks, threads>>>(M, 0, 1, blk_n, false);
 
   int i = 1;
   while (i < min_blk_d && i < blk_n) {
     blocks = (i + i) < blk_m ? i + 1 : blk_m - i;
     threads = powdown(blk_n - i - 1 + blocks);
 
-    dgeqt2_master<<<blocks, threads>>>(M, blk_n, i, blk_n);
+    tile_qr_kernel<<<blocks, threads>>>(M, i, i, blk_n, true);
 
     blocks = (i + i + 1) < blk_m ? i + 1 : blk_m - i - 1;
     threads = powdown(blk_n - i - 1 + blocks);
 
-    dtsqt2_master<<<blocks, threads>>>(M, blk_n, i, i + 1, blk_n);
+    tile_qr_kernel<<<blocks, threads>>>(M, i, i + 1, blk_n, false);
     ++i;
   }
 
@@ -738,7 +627,7 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
     blocks = (i + blk_n) <= blk_m ? min_blk_d : blk_m - i;
     threads = powdown(blocks);
 
-    dtsqt2_master<<<blocks, threads>>>(M, blk_n, blk_n - 1, i, blk_n);
+    tile_qr_kernel<<<blocks, threads>>>(M, blk_n - 1, i, blk_n, false);
     ++i;
   }
 
