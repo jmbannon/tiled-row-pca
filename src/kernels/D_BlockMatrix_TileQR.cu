@@ -720,30 +720,33 @@ BlockMatrix_TileQR_multi_thread(BlockMatrix *BlkM) {
   int min_blk_d = blk_m > blk_n ? blk_n : blk_m;
   Numeric *M = BlkM->data_d;
 
-  // printf("blocks: %d, threads: %d\n", 1, blk_n - 1);
-  dgeqt2_master<<<1, powdown(blk_n - 1)>>>(M, blk_n, 0, blk_n);
+  int blocks = 1;
+  int threads = powdown(blk_n - 1);
 
-  // printf("blocks: %d, threads: %d\n", 1, blk_n - 1);
-  dtsqt2_master<<<1, powdown(blk_n - 1)>>>(M, blk_n, 0, 1, blk_n);
+  dgeqt2_master<<<blocks, threads>>>(M, blk_n, 0, blk_n);
+
+  dtsqt2_master<<<blocks, threads>>>(M, blk_n, 0, 1, blk_n);
 
   int i = 1;
   while (i < min_blk_d && i < blk_n) {
-    int blocks = (i + i) < blk_m ? i + 1 : blk_m - i;
+    blocks = (i + i) < blk_m ? i + 1 : blk_m - i;
+    threads = powdown(blk_n - i - 1 + blocks);
 
-    // printf("blocks: %d, threads: %d\n", blocks, blk_n - i - 1 + blocks);
-    dgeqt2_master<<<blocks, powdown(blk_n - i - 1 + blocks)>>>(M, blk_n, i, blk_n);
+    dgeqt2_master<<<blocks, threads>>>(M, blk_n, i, blk_n);
 
     blocks = (i + i + 1) < blk_m ? i + 1 : blk_m - i - 1;
-    // printf("blocks: %d, threads: %d\n", blocks, blk_n - i - 1 + blocks);
-    dtsqt2_master<<<blocks, powdown(blk_n - i - 1 + blocks)>>>(M, blk_n, i, i + 1, blk_n);
+    threads = powdown(blk_n - i - 1 + blocks);
+
+    dtsqt2_master<<<blocks, threads>>>(M, blk_n, i, i + 1, blk_n);
     ++i;
   }
 
   ++i;
   while (i < blk_m) {
-    int blocks = (i + blk_n) <= blk_m ? min_blk_d : blk_m - i;
-    // printf("blocks: %d, threads: %d\n", blocks, blocks);
-    dtsqt2_master<<<blocks, powdown(blocks)>>>(M, blk_n, blk_n - 1, i, blk_n);
+    blocks = (i + blk_n) <= blk_m ? min_blk_d : blk_m - i;
+    threads = powdown(blocks);
+
+    dtsqt2_master<<<blocks, threads>>>(M, blk_n, blk_n - 1, i, blk_n);
     ++i;
   }
 
