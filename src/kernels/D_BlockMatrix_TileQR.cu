@@ -625,8 +625,9 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
 
 __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
   __shared__ Numeric T[BLK_SIZE];
-  Numeric X[BLK_SIZE];
-  Numeric Y[BLK_SIZE];
+  Numeric Rbind[2 * BLK_SIZE];
+  Numeric *X = Rbind;
+  Numeric *Y = &Rbind[BLK_SIZE];
 
   int k = ki - blockIdx.x;
   int m = ki + blockIdx.x;
@@ -657,8 +658,6 @@ __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
     Numeric *A_mk = &M[BLK_POS(m, k, nr_blk_cols)];
 
     if (threadIdx.x == 0) {
-      Numeric Rbind[2 * BLK_SIZE];
-
       Numeric *A_kk = &M[BLK_POS(k, k, nr_blk_cols)];
       dtsqt2(A_kk, A_mk, T, Rbind);
     }
@@ -677,8 +676,9 @@ __global__ void dgeqt2_master(Numeric *M, int lbdm, int ki, int nr_blk_cols) {
 
 __global__ void dtsqt2_master(Numeric *M, int lbdm, int ki, int mi, int nr_blk_cols) {
   __shared__ Numeric T[BLK_SIZE];
-  Numeric X[BLK_SIZE];
-  Numeric Y[BLK_SIZE];
+  Numeric Rbind[2 * BLK_SIZE];
+  Numeric *X = Rbind;
+  Numeric *Y = &Rbind[BLK_SIZE];
 
   int k = ki - blockIdx.x;
   int m = mi + blockIdx.x;
@@ -687,8 +687,6 @@ __global__ void dtsqt2_master(Numeric *M, int lbdm, int ki, int mi, int nr_blk_c
   Numeric *A_mk = &M[BLK_POS(m, k, lbdm)];
 
   if (threadIdx.x == 0) {
-    Numeric Rbind[2 * BLK_SIZE];
-
     Numeric *A_kk = &M[BLK_POS(k, k, lbdm)];
     dtsqt2(A_kk, A_mk, T, Rbind);
   }
