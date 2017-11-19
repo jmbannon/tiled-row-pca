@@ -625,6 +625,7 @@ __device__ int BlockMatrix_TileQR_single_thread_kernel(Numeric *A, int blk_m, in
 
 __global__ void tile_qr_kernel(Numeric *M, int ki, int mi, int nr_blk_cols, bool dgeqt2) {
   __shared__ Numeric T[BLK_SIZE];
+  __shared__ Numeric A_mk[BLK_SIZE];
   Numeric Rbind[2 * BLK_SIZE];
   Numeric *X = Rbind;
   Numeric *Y = &Rbind[BLK_SIZE];
@@ -633,12 +634,17 @@ __global__ void tile_qr_kernel(Numeric *M, int ki, int mi, int nr_blk_cols, bool
   int m = mi + blockIdx.x;
   int nr_blks_to_process = nr_blk_cols - k - 1;
 
-  Numeric *A_mk = &M[BLK_POS(m, k, nr_blk_cols)];
+  for (int tr = threadIdx.x; tr < BLK_SIZE; tr += blockDim.x) {
+    A_mk[tr] = M[BLK_POS(m, k, nr_blk_cols) + tr];
+  }
+  __syncthreads();
+
+  // Numeric *A_mk = &M[BLK_POS(m, k, nr_blk_cols)];
   
   if (blockIdx.x == 0 && dgeqt2) {
 
     if (threadIdx.x == 0) {
-        blk_dgeqt2(A_mk, T);
+        blk_dgeqt2(A_mk, T); // m == k
     }
     __syncthreads();
 
@@ -665,6 +671,11 @@ __global__ void tile_qr_kernel(Numeric *M, int ki, int mi, int nr_blk_cols, bool
       }
     }
 
+  }
+
+  __syncthreads();
+  for (int tr = threadIdx.x; tr < BLK_SIZE; tr += blockDim.x) {
+    M[BLK_POS(m, k, nr_blk_cols) + tr] = A_mk[tr];
   }
 }
 
